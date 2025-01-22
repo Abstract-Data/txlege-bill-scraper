@@ -1,0 +1,22 @@
+[project]
+name = "txlege-bill-scraper"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "jreakin", email = "johnreakin@gmail.com" }
+]
+requires-python = ">=3.12.8"
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+    "fastapi>=0.115.7",
+    "pydantic>=2.10.5",
+    "sqlmodel>=0.0.22",
+]
+
+[project.scripts]
+txlege-bill-scraper = "txlege_bill_scraper:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
