@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from app.texas_house import TxLegeLoader
+from texas_house import TxLegeLoader
 #
 house87 = TxLegeLoader("house")
 house88 = TxLegeLoader("house", lege_session="88R")
@@ -15,20 +15,20 @@ def get_bill_list(chamber: TxLegeLoader):
     return bill_list
 
 
-house_bills = pd.DataFrame.from_dict(
-    get_bill_list(
-        house88
-    ),
-    orient="index"
-).to_csv(
-    Path.home() / 'Downloads' / 'house8R_bills.csv'
-)
-
-senate_bills = pd.DataFrame.from_dict(
-    get_bill_list(
-        senate88
-    ),
-    orient="index"
-).to_csv(
-    Path.home() / 'Downloads' / 'senate88R_bills.csv'
-)
+# house_bills = pd.DataFrame.from_dict(
+#     get_bill_list(
+#         house88
+#     ),
+#     orient="index"
+# ).to_csv(
+#     Path.home() / 'Downloads' / 'house8R_bills.csv'
+# )
+#
+# senate_bills = pd.DataFrame.from_dict(
+#     get_bill_list(
+#         senate88
+#     ),
+#     orient="index"
+# ).to_csv(
+#     Path.home() / 'Downloads' / 'senate88R_bills.csv'
+# )
