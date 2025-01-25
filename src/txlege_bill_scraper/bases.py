@@ -25,21 +25,9 @@ class AllModelBase(abc.ABC):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     _builder: ClassVar[BuildWebDriver] = BuildWebDriver()
 
-    def __init__(self, **data):
+    def __init__(self, builder: BuildWebDriver, **data):
         super().__init__(**data)
-        self._setup_injection()
-
-    @classmethod
-    def _setup_injection(cls):
-        def bind_driver(binder: Binder) -> None:
-            if not cls._builder.DRIVER:
-                cls._builder.build()
-
-            binder.bind(BrowserDriver, cls._builder.DRIVER)
-            binder.bind(BrowserWait, cls._builder.WAIT)
-        configure(bind_driver)
-        cls.__class__._builder.injection_configured = inject.is_configured()
-        return cls
+        self._builder = builder
 
     @classmethod
     def use_brave(cls) -> Self:

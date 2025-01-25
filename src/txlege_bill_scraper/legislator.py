@@ -9,7 +9,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from bases import (
     DBModelBase,
-    get_link
+    get_link,
+    BrowserDriver,
+    BrowserWait
 )
 
 
@@ -29,13 +31,13 @@ class LegislatorBase(DBModelBase):
     # bills_cosponsored: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     # amendments_authored: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
-    def __init__(self, **data):
-        if not self.driver:
-            self.__class__.configure_driver()
+    def __init__(self, _driver: BrowserDriver, _wait: BrowserWait, **data):
+        self._driver = _driver
+        self._wait = _wait
         super().__init__(**data)
 
     def fetch_member_details(self):
-        with self.driver as _driver:
+        with self._driver as _driver:
             _driver.get(self.member_url)
             _wait = WebDriverWait(_driver, 10)
             _get_link = partial(get_link, _driver=_driver)

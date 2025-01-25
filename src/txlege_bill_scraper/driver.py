@@ -25,22 +25,19 @@ BrowserDriver = ChromeDriver | BraveDriver  # type: ignore
 BrowserWait = WebDriverWait
 
 BRAVE_PATH = Path.home() / '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
-# @contextmanager
-# def driver_factory(driver: BrowserDriver) -> Iterator[BrowserDriver]:
-#     try:
-#         yield driver
-#     finally:
-#         driver.quit()
 
 @dataclass
 class BuildWebDriver:
     OPTIONS: ClassVar[Optional[BrowserOptions]] = None
-    DRIVER: ClassVar[Optional[BrowserDriver]] = None
-    WAIT: ClassVar[Optional[WebDriverWait]] = None
+    DRIVER: Optional[BrowserDriver] = None
+    WAIT: Optional[WebDriverWait] = None
     using_brave: ClassVar[bool] = False
     headless_mode: ClassVar[bool] = False
     injection_configured: bool = False
 
+    def __init__(self):
+        self.DRIVER = None
+        self.WAIT = None
 
     @classmethod
     def use_brave(cls):
@@ -79,15 +76,14 @@ class BuildWebDriver:
         cls.OPTIONS = options
         return cls
 
-    @classmethod
-    def build(cls):
-        cls._set_options()
-        cls.DRIVER = (
-            BraveDriver(options=cls.OPTIONS)
-            if cls.using_brave
-            else ChromeDriver(options=cls.OPTIONS)
+    def build(self):
+        self._set_options()
+        self.DRIVER = (
+            BraveDriver(options=self.OPTIONS)
+            if self.using_brave
+            else ChromeDriver(options=self.OPTIONS)
         )
-        _wait_obj = WebDriverWait(cls.DRIVER, 10)
-        _wait_obj.__class__.__repr__ = lambda self: f"WebDriverWait({cls.DRIVER.__repr__()}, 10)"
-        cls.WAIT = _wait_obj
-        return cls
+        _wait_obj = WebDriverWait(self.DRIVER, 10)
+        _wait_obj.__class__.__repr__ = lambda self: f"WebDriverWait({self.DRIVER.__repr__()}, 10)"
+        self.WAIT = _wait_obj
+        return self

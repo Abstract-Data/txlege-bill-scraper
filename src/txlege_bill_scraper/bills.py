@@ -48,25 +48,25 @@ class BillDetail(DBModelBase):
     stages: Optional[List[BillStage]] = None
     amendments: Optional[List[Amendment]] = None
 
-    def __init__(self, **data):
-        if not self.driver:
-            self.__class__.configure_driver()
+    def __init__(self, _driver: BrowserDriver, _wait: BrowserWait, **data):
+        self._driver = _driver
+        self._wait = _wait
         super().__init__(**data)
 
     @autoparams()
-    def fetch_bill_details(self, _driver: BrowserDriver, _wait: BrowserWait) -> Self:
-        _driver.get(self.bill_url)
-        _wait.until(EC.presence_of_element_located((By.ID, "Form1")))
+    def fetch_bill_details(self) -> Self:
+        self._driver.get(self.bill_url)
+        self._wait.until(EC.presence_of_element_located((By.ID, "Form1")))
 
         # Extract bill stages
-        self._extract_basic_details(_driver)
-        self._extract_action_history(_driver)
-        self.stages = self._extract_bill_stages(_driver)
+        self._extract_basic_details(self._driver)
+        self._extract_action_history(self._driver)
+        self.stages = self._extract_bill_stages(self._driver)
 
         # Get amendments page
         amend_url = self.bill_url.replace("History.aspx", "Amendments.aspx")
-        _driver.get(amend_url)
-        self._extract_amendments(_driver)
+        self._driver.get(amend_url)
+        self._extract_amendments(self._driver)
         return self
 
     def _extract_basic_details(self, _driver: BrowserDriver) -> None:
@@ -268,6 +268,8 @@ class BillList(NonDBModelBase):
         bill_links = self._get_bill_links(_driver)
         for bill in bill_links:
             _detail = BillDetail(
+                _driver=_driver,
+                _wait=_wait,
                 bill_number=bill[0],
                 bill_url=bill[1]
             )
@@ -277,5 +279,5 @@ class BillList(NonDBModelBase):
     @autoparams()
     def generate_bills(self, _driver: BrowserDriver):
         for bill in self.bills:
-            self.bills[bill].fetch_bill_details(_driver)
+            self.bills[bill].fetch_bill_details()
         return self
