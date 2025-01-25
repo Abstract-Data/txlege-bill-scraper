@@ -7,7 +7,8 @@ from selenium.webdriver.remote.webelement import WebElement
 import undetected_chromedriver as uc
 from pathlib import Path
 from pydantic import HttpUrl
-
+from selenium.common.exceptions import NoSuchElementException
+from typing import List, Tuple
 
 DOWNLOAD_PATH = Path.home() / 'Downloads'
 BRAVE_PATH = '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
@@ -22,66 +23,93 @@ driver = uc.Chrome(options=options)
 driver.get("https://capitol.texas.gov/Home.aspx")
 wait = WebDriverWait(driver, 10)
 wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "House"))).click()
-wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "House Members"))).click()
-wait.until(EC.presence_of_element_located((By.ID, "content"))).click()
-member_list = driver.find_element(By.ID, "content")
-links = member_list.find_elements(By.TAG_NAME, "a")
-member_links = iter(x.get_attribute("href") for x in links)
+wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "Filed House Bills")))
+filed_house_bills = driver.find_element(By.LINK_TEXT, "Filed House Bills").get_attribute("href")
+driver.get(filed_house_bills)
+filed_house_bills = driver.find_element(By.LINK_TEXT, "Filed House Bills").get_attribute("href")
+driver.get(filed_house_bills)
+wait.until(EC.element_to_be_clickable((By.TAG_NAME, "table")))
+tables = driver.find_elements(By.TAG_NAME, "table")
 
-driver.get(next(member_links))
-wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "Bills Authored")))
-def get_link(value: str, by: By = By.LINK_TEXT) -> str:
-    return driver.find_element(by, value).get_attribute('href')
-url = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
-member_name = driver.find_element(By.ID, "usrHeader_lblPageTitle").text
-member_contact = driver.find_element(By.ID, "contactInfo")
-member_district = member_contact.find_element(By.ID, "lblDistrict").text
-member_capitol_office = member_contact.find_element(By.ID, "lblCapitolOffice").text
-member_capitol_phone = member_contact.find_element(By.ID, "lblCapitolPhone").text
-member_district_address1 = member_contact.find_element(By.ID, "lblDistrictAddress1").text
-member_district_address2 = member_contact.find_element(By.ID, "lblDistrictAddress2").text
-member_district_phone = member_contact.find_element(By.ID, "lblDistrictPhone").text
-member_committee_assignments = driver.find_element(By.ID, "committeeAssignments")
-bills_authored = get_link("Bills Authored")
-bills_sponsored = get_link("Bills Sponsored")
-bills_coauthored = get_link("Bills Coauthored")
-bills_cosponsored = get_link("Bills Cosponsored")
-amendments_authored = get_link("Amendments Authored")
-member_homepage = get_link("Home Page", by=By.PARTIAL_LINK_TEXT)
+def extract_bill_link(table_element: WebElement) -> Tuple[str, str]:
+    """Extract bill number and URL from table element"""
+    try:
+        link = table_element.find_element(
+            By.CSS_SELECTOR, 
+            "tr:first-child td:first-child a"
+        )
+        return (link.text.strip(), link.get_attribute("href"))
+    except NoSuchElementException:
+        return None
+    
+def get_bill_links(driver: uc.Chrome) -> List[Tuple[str, str]]:
+    """Get all bill numbers and URLs from the page"""
+    bill_tables = driver.find_elements(
+        By.CSS_SELECTOR,
+        "table[width='100%'][cellpadding='1']"
+    )
+    return [link for table in bill_tables 
+            if (link := extract_bill_link(table))]
+# wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "House Members"))).click()
+# wait.until(EC.presence_of_element_located((By.ID, "content"))).click()
+# member_list = driver.find_element(By.ID, "content")
+# links = member_list.find_elements(By.TAG_NAME, "a")
+# member_links = iter(x.get_attribute("href") for x in links)
 
-driver.get(bills_authored)
-bill_links = driver.find_elements(By.TAG_NAME, "table")
-bill_link_urls = {
-    " ".join(
-        (x
-        .text
-        .split('\n')[0]
-        .split()[:2])): (x
-                         .find_element(By.TAG_NAME, "a")
-                         .get_attribute("href")
-                         )
-    for x in bill_links}
+# driver.get(next(member_links))
+# wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "Bills Authored")))
+# def get_link(value: str, by: By = By.LINK_TEXT) -> str:
+#     return driver.find_element(by, value).get_attribute('href')
+# url = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
+# member_name = driver.find_element(By.ID, "usrHeader_lblPageTitle").text
+# member_contact = driver.find_element(By.ID, "contactInfo")
+# member_district = member_contact.find_element(By.ID, "lblDistrict").text
+# member_capitol_office = member_contact.find_element(By.ID, "lblCapitolOffice").text
+# member_capitol_phone = member_contact.find_element(By.ID, "lblCapitolPhone").text
+# member_district_address1 = member_contact.find_element(By.ID, "lblDistrictAddress1").text
+# member_district_address2 = member_contact.find_element(By.ID, "lblDistrictAddress2").text
+# member_district_phone = member_contact.find_element(By.ID, "lblDistrictPhone").text
+# member_committee_assignments = driver.find_element(By.ID, "committeeAssignments")
+# bills_authored = get_link("Bills Authored")
+# bills_sponsored = get_link("Bills Sponsored")
+# bills_coauthored = get_link("Bills Coauthored")
+# bills_cosponsored = get_link("Bills Cosponsored")
+# amendments_authored = get_link("Amendments Authored")
+# member_homepage = get_link("Home Page", by=By.PARTIAL_LINK_TEXT)
 
-url1 = next(iter(bill_link_urls.values()))
-driver.get(url1)
-actions = driver.find_element(By.ID, "Form1").text.split('\n')
-find_where_actions_start = (i + 2 for i, x in enumerate(actions) if x.startswith("Actions:")).__next__()
+# driver.get(bills_authored)
+# bill_links = driver.find_elements(By.TAG_NAME, "table")
+# bill_link_urls = {
+#     " ".join(
+#         (x
+#         .text
+#         .split('\n')[0]
+#         .split()[:2])): (x
+#                          .find_element(By.TAG_NAME, "a")
+#                          .get_attribute("href")
+#                          )
+#     for x in bill_links}
 
-t1 = ['Description', 'Comment', 'Date', 'Time', 'Journal Page']
-action_list = []
-for x in actions[find_where_actions_start:]:
-    t2 = x.split()
-    t3 = dict(zip(t1, t2))
-    action_list.append(t3)
+# url1 = next(iter(bill_link_urls.values()))
+# driver.get(url1)
+# actions = driver.find_element(By.ID, "Form1").text.split('\n')
+# find_where_actions_start = (i + 2 for i, x in enumerate(actions) if x.startswith("Actions:")).__next__()
 
-driver.find_element(By.LINK_TEXT, "Text").click()
-_bill_version_table = driver.find_element(By.ID, "Form1")
-_header = _bill_version_table.find_elements(By.TAG_NAME, "tr")[0]
-_header_text = [x.text.replace('\n', ' ') for x in _header.find_elements(By.TAG_NAME, "td")]
-bill_stages = []
-for x in _bill_version_table.find_elements(By.TAG_NAME, "tr")[1:]:
-    _bill_stage = dict(zip(_header_text, [y.text for y in x.find_elements(By.TAG_NAME, "td")]))
-    bill_stages.append(_bill_stage)
+# t1 = ['Description', 'Comment', 'Date', 'Time', 'Journal Page']
+# action_list = []
+# for x in actions[find_where_actions_start:]:
+#     t2 = x.split()
+#     t3 = dict(zip(t1, t2))
+#     action_list.append(t3)
+
+# driver.find_element(By.LINK_TEXT, "Text").click()
+# _bill_version_table = driver.find_element(By.ID, "Form1")
+# _header = _bill_version_table.find_elements(By.TAG_NAME, "tr")[0]
+# _header_text = [x.text.replace('\n', ' ') for x in _header.find_elements(By.TAG_NAME, "td")]
+# bill_stages = []
+# for x in _bill_version_table.find_elements(By.TAG_NAME, "tr")[1:]:
+#     _bill_stage = dict(zip(_header_text, [y.text for y in x.find_elements(By.TAG_NAME, "td")]))
+#     bill_stages.append(_bill_stage)
 # action_details = actions.find_element(By.ID, "Form1")
 # driver.get(member_homepage)
 # wait.until(EC.element_to_be_clickable((By.TAG_NAME, "h1")))

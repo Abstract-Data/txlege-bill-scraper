@@ -212,6 +212,15 @@ wheels = [
 ]
 
 [[package]]
+name = "inject"
+version = "5.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/c5/679c993e82dcd86056cfc44dc6bb6f0ed4a2fcb379c7640ba7e10fb217da/inject-5.2.1.tar.gz", hash = "sha256:f7c305a75cc4e3a331d248e996f25783ba784b88d5a9b9f73c53eacaa6d76985", size = 25995 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e9/db/3250e21ff08b3466e1ce8d0b2b09edcd6af7672f709d8625e142e824eb0b/inject-5.2.1-py2.py3-none-any.whl", hash = "sha256:e40a5b1bebd8a4050b6f98f3396f3de6e9e2e411ad2a2145f16f351cb6f54e51", size = 14151 },
+]
+
+[[package]]
 name = "numpy"
 version = "2.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -594,6 +603,7 @@ dependencies = [
     { name = "beautifulsoup4" },
     { name = "fastapi" },
     { name = "icecream" },
+    { name = "inject" },
     { name = "pandas" },
     { name = "pydantic" },
     { name = "requests" },
@@ -610,6 +620,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12.3" },
     { name = "fastapi", specifier = ">=0.115.7" },
     { name = "icecream", specifier = ">=2.1.4" },
+    { name = "inject", specifier = ">=5.2.1" },
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pydantic", specifier = ">=2.10.5" },
     { name = "requests", specifier = ">=2.32.3" },
