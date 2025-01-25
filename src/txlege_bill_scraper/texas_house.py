@@ -174,6 +174,5 @@ def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
 # test.get_legislators(driver)
 HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
 house_bills = BillList(chamber=HOUSE)
-# house_bills.create_bill_list()
 
 # house_bills.generate_bills()

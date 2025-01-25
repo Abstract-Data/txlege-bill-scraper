@@ -13,6 +13,10 @@ from sqlmodel import SQLModel
 
 from driver import BuildWebDriver, BrowserDriver, BrowserWait
 
+# TODO: Figureout how to get dependency injection to work correctly.
+
+
+
 def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
     return _driver.find_element(by, value).get_attribute('href')
 
