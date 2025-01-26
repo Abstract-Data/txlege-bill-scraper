@@ -1,15 +1,8 @@
 from __future__ import annotations
-import requests
-from bs4 import BeautifulSoup
-from dataclasses import  field
-from typing import Dict, Any, Self
+from typing import Dict
 import tomli
 from pathlib import Path
-from pydantic import Field as PydanticField, HttpUrl
-from inject import autoparams
 
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
 from legislator import LegislatorBase
@@ -174,5 +167,7 @@ def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
 # test.get_legislators(driver)
 HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
 house_bills = BillList(chamber=HOUSE)
+house_bills.get_bill_list()
 
+# TODO: Deal with BillDetails references in Bill Interface Module to avoid ciruclar imports.
 # house_bills.generate_bills()

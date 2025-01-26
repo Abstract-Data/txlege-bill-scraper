@@ -1,15 +1,14 @@
+from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, ClassVar
+from typing import Optional, ClassVar, Type, Callable, ForwardRef
 from pathlib import Path
-
-import inject
-from inject import Binder, configure
-from functools import lru_cache
+from functools import partial
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 import undetected_chromedriver as uc
+
 
 BraveOptions = uc.ChromeOptions
 BraveDriver = uc.Chrome
@@ -20,45 +19,27 @@ BraveDriver.__repr__ = lambda self: "BraveDriver"
 ChromeDriver.__repr__ = lambda self: "SeleniumChromeDriver"
 ChromeOptions.__repr__ = lambda self: "SeleniumChromeOptions"
 
-BrowserOptions = ChromeOptions | BraveOptions  # type: ignore
-BrowserDriver = ChromeDriver | BraveDriver  # type: ignore
-BrowserWait = WebDriverWait
+
+BuilderOptions = ChromeOptions | BraveOptions  # type: ignore
+BuilderDriver = ChromeDriver | BraveDriver  # type: ignore
+BuilderWait = WebDriverWait
+
+BrowserOptions = BuilderOptions
+BrowserDriver = BuilderDriver
+BrowserWait = BuilderWait
 
 BRAVE_PATH = Path.home() / '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
-# @contextmanager
-# def driver_factory(driver: BrowserDriver) -> Iterator[BrowserDriver]:
-#     try:
-#         yield driver
-#     finally:
-#         driver.quit()
+
+
 
 @dataclass
 class BuildWebDriver:
-    OPTIONS: ClassVar[Optional[BrowserOptions]] = None
-    DRIVER: ClassVar[Optional[BrowserDriver]] = None
-    WAIT: ClassVar[Optional[WebDriverWait]] = None
+    OPTIONS: ClassVar[Optional[BuilderOptions]] = None
+    DRIVER: ClassVar[Optional[partial[BuilderDriver] | BuilderDriver]] = None
+    WAIT: ClassVar[Optional[Type[WebDriverWait] | WebDriverWait]] = None
     using_brave: ClassVar[bool] = False
     headless_mode: ClassVar[bool] = False
-    injection_configured: bool = False
-
-
-    @classmethod
-    def use_brave(cls):
-        """
-        Use the Brave browser as the WebDriver
-        :return: self
-        """
-        cls.using_brave = True
-        return cls
-
-    @classmethod
-    def headless(cls):
-        """
-        Set the WebDriver to run in headless mode
-        :return: self
-        """
-        cls.headless_mode = True
-        return cls
+    injection_configured: ClassVar[bool] = False
 
     @classmethod
     def _set_options(cls):
@@ -82,12 +63,9 @@ class BuildWebDriver:
     @classmethod
     def build(cls):
         cls._set_options()
-        cls.DRIVER = (
-            BraveDriver(options=cls.OPTIONS)
+        cls.DRIVER = (BraveDriver(options=cls.OPTIONS)
             if cls.using_brave
             else ChromeDriver(options=cls.OPTIONS)
         )
-        _wait_obj = WebDriverWait(cls.DRIVER, 10)
-        _wait_obj.__class__.__repr__ = lambda self: f"WebDriverWait({cls.DRIVER.__repr__()}, 10)"
-        cls.WAIT = _wait_obj
+        cls.WAIT = WebDriverWait(cls.DRIVER, 10)
         return cls
