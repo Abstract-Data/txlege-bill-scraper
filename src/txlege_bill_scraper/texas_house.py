@@ -6,10 +6,9 @@ from pathlib import Path
 from selenium.webdriver.common.by import By
 
 from legislator import LegislatorBase
-from types_ import ChamberTuple
-from driver import BrowserDriver
+from src.txlege_bill_scraper.types import ChamberTuple, BrowserDriver
 from bases import NonDBModelBase
-from bills import BillList
+from src.txlege_bill_scraper.models.bills import BillList
 
 
 with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
@@ -167,7 +166,8 @@ def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
 # test.get_legislators(driver)
 HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
 house_bills = BillList(chamber=HOUSE)
-house_bills.get_bill_list()
+house_bills.create_bill_list()
+house_bills.create_bill_details()
 
 # TODO: Deal with BillDetails references in Bill Interface Module to avoid ciruclar imports.
 # house_bills.generate_bills()

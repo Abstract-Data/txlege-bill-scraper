@@ -1,8 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, ClassVar, Type, Callable, ForwardRef
+from typing import Optional, ClassVar, Union
 from pathlib import Path
-from functools import partial
 
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium import webdriver
@@ -19,24 +18,15 @@ BraveDriver.__repr__ = lambda self: "BraveDriver"
 ChromeDriver.__repr__ = lambda self: "SeleniumChromeDriver"
 ChromeOptions.__repr__ = lambda self: "SeleniumChromeOptions"
 
-
-BuilderOptions = ChromeOptions | BraveOptions  # type: ignore
-BuilderDriver = ChromeDriver | BraveDriver  # type: ignore
-BuilderWait = WebDriverWait
-
-BrowserOptions = BuilderOptions
-BrowserDriver = BuilderDriver
-BrowserWait = BuilderWait
-
 BRAVE_PATH = Path.home() / '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'
 
 
 
 @dataclass
 class BuildWebDriver:
-    OPTIONS: ClassVar[Optional[BuilderOptions]] = None
-    DRIVER: ClassVar[Optional[partial[BuilderDriver] | BuilderDriver]] = None
-    WAIT: ClassVar[Optional[Type[WebDriverWait] | WebDriverWait]] = None
+    OPTIONS: ClassVar[Optional[Union[ChromeOptions, BraveOptions]]] = None
+    DRIVER: ClassVar[Optional[Union[ChromeDriver, BraveDriver]]] = None
+    WAIT: ClassVar[Optional[WebDriverWait]] = None
     using_brave: ClassVar[bool] = False
     headless_mode: ClassVar[bool] = False
     injection_configured: ClassVar[bool] = False
@@ -61,11 +51,25 @@ class BuildWebDriver:
         return cls
 
     @classmethod
-    def build(cls):
+    def build(cls) -> None:
+        """Create the driver and wait right on the class."""
         cls._set_options()
-        cls.DRIVER = (BraveDriver(options=cls.OPTIONS)
-            if cls.using_brave
-            else ChromeDriver(options=cls.OPTIONS)
-        )
+        if cls.using_brave:
+            cls.DRIVER = BraveDriver(options=cls.OPTIONS)
+        else:
+            cls.DRIVER = ChromeDriver(options=cls.OPTIONS)
         cls.WAIT = WebDriverWait(cls.DRIVER, 10)
-        return cls
+    
+    @classmethod
+    def provide_driver(cls):
+        """Provider function for driver (for Python Inject)"""
+        if not cls.DRIVER:
+            cls.build()
+        return cls.DRIVER
+    
+    @classmethod
+    def provide_wait(cls):
+        """Provider function for wait instance (for Python Inject)"""
+        if not cls.WAIT:
+            cls.build()
+        return cls.WAIT

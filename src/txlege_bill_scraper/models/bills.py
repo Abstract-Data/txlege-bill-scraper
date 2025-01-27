@@ -1,12 +1,11 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Tuple, Self
+from typing import Optional, List, Dict
 
 from pydantic import Field as PydanticField
 import pandas as pd
 
-from types_ import ChamberTuple
-from bases import DBModelBase, InterfaceBase, NonDBModelBase
-from navigator import BillListInterface, BillDetailInterface
+from src.txlege_bill_scraper.types import ChamberTuple
+from src.txlege_bill_scraper.bases import DBModelBase, NonDBModelBase
 
 
 class BillStage(DBModelBase):
@@ -47,5 +46,11 @@ class BillList(NonDBModelBase):
     chamber: ChamberTuple
     bills: Optional[Dict[str, BillDetail]] = PydanticField(default_factory=dict)
 
-    def get_bill_list(self):
-        self.bills = BillListInterface().create_bill_list(chamber=self.chamber)
+    # Move this method elsewhere or inject the interface
+    def create_bill_list(self):
+        from src.txlege_bill_scraper.navigator import BillListInterface  # Local import
+        self.bills = BillListInterface._build_bill_list(chamber=self.chamber)
+
+    def create_bill_details(self):
+        from src.txlege_bill_scraper.navigator import BillListInterface  # Local import
+        self.bills = BillListInterface._build_bill_details(self.bills)

@@ -4,8 +4,7 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver import Chrome as ChromeDriver
 from selenium.webdriver.support.ui import WebDriverWait
 
-BrowserOptions = Union[ChromeOptions, BraveOptions]
-BrowserDriver = Union[ChromeDriver, BraveDriver]
+BrowserDriver = ChromeDriver
 BrowserWait = WebDriverWait
 
 
