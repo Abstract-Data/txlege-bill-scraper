@@ -7,7 +7,6 @@ from selenium.webdriver.common.by import By
 
 from legislator import LegislatorBase
 from src.txlege_bill_scraper.types import ChamberTuple, BrowserDriver
-from bases import NonDBModelBase
 from src.txlege_bill_scraper.models.bills import BillList
 
 
@@ -165,7 +164,7 @@ def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
 # test = TxLegeLoader(Chamber.HOUSE)
 # test.get_legislators(driver)
 HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
-house_bills = BillList(chamber=HOUSE)
+house_bills = BillList(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
 house_bills.create_bill_list()
 house_bills.create_bill_details()
 

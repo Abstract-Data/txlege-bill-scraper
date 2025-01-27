@@ -1,6 +1,4 @@
-from typing import NamedTuple, Union
-from undetected_chromedriver import ChromeOptions as BraveOptions, Chrome as BraveDriver
-from selenium.webdriver.chrome.options import Options as ChromeOptions
+from typing import NamedTuple
 from selenium.webdriver import Chrome as ChromeDriver
 from selenium.webdriver.support.ui import WebDriverWait
 

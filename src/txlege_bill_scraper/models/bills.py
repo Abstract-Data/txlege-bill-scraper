@@ -44,12 +44,13 @@ class BillDetail(DBModelBase):
 
 class BillList(NonDBModelBase):
     chamber: ChamberTuple
+    legislative_session: str
     bills: Optional[Dict[str, BillDetail]] = PydanticField(default_factory=dict)
 
     # Move this method elsewhere or inject the interface
     def create_bill_list(self):
         from src.txlege_bill_scraper.navigator import BillListInterface  # Local import
-        self.bills = BillListInterface._build_bill_list(chamber=self.chamber)
+        self.bills = BillListInterface._build_bill_list(chamber=self.chamber, lege_session=self.legislative_session)
 
     def create_bill_details(self):
         from src.txlege_bill_scraper.navigator import BillListInterface  # Local import

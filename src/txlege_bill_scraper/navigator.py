@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Optional, Dict, Tuple
 import re
 from contextlib import contextmanager, ExitStack
-from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -15,24 +15,25 @@ import inject
 import logfire
 from src.txlege_bill_scraper.bases import InterfaceBase, BrowserDriver, BrowserWait
 from src.txlege_bill_scraper.types import ChamberTuple
-from src.txlege_bill_scraper.types.bills import BillDetailProtocol, BillStageProtocol
-from src.txlege_bill_scraper.factories.bills import create_bill_detail, create_bill_stages, create_amendment
+from src.txlege_bill_scraper.types.bills import BillDetailProtocol
+import src.txlege_bill_scraper.factories.bills as BILL_FACTORY
 
-logfire.configure(service_name=Path(__file__).stem)
+
 LOGFIRE_CONTEXTS = []
 
 @contextmanager
 def logfire_context(value: str):
     LOGFIRE_CONTEXTS.append(value)
-    try:
-        with ExitStack() as stack:
-            # Enter all contexts (including the newly added one)
-            for context_name in reversed(LOGFIRE_CONTEXTS):
-                stack.enter_context(logfire.span(context_name))
-                yield
-    finally:
-        # Remove the one we added
-        LOGFIRE_CONTEXTS.pop()
+    with ExitStack() as stack:
+        # Build a list of all spans (reversed so the newest is last in the list)
+        spans = []
+        for context_name in reversed(LOGFIRE_CONTEXTS):
+            span = logfire.span(context_name)
+            stack.enter_context(span)
+            spans.append(span)
+        # The last one entered is the topmost (the current context)
+        yield spans[0]
+    LOGFIRE_CONTEXTS.pop()
 
 class BillDetailInterface(InterfaceBase):
 
@@ -43,14 +44,16 @@ class BillDetailInterface(InterfaceBase):
         _wait.until(EC.presence_of_element_located((By.ID, "Form1")))
 
         # Extract bill stages
-        cls._extract_basic_details(_driver)
-        cls._extract_action_history(_driver)
-        bill.stages = cls._extract_bill_stages(_driver)
+        bill = cls._extract_basic_details(bill)
+        bill = cls._extract_action_history(bill)
+        bill_text_url = bill.bill_url.replace("History.aspx", "Text.aspx")
+        _driver.get(bill_text_url)
+        bill = cls._extract_bill_stages(bill)
 
         # Get amendments page
-        amend_url = bill.bill_url.replace("History.aspx", "Amendments.aspx")
-        _driver.get(amend_url)
-        cls._extract_amendments(_driver)
+        amendments_url = bill.bill_url.replace("Text.aspx", "Amendments.aspx")
+        _driver.get(amendments_url)
+        bill = cls._extract_amendments(bill)
         return bill
 
     @classmethod
@@ -58,7 +61,10 @@ class BillDetailInterface(InterfaceBase):
     def _extract_basic_details(cls, bill: BillDetailProtocol, _driver: BrowserDriver) -> BillDetailProtocol:
         """Extract basic bill information"""
         # Last Action
-        last_action = cls._get_cell_text(_driver, "cellLastAction")
+        try:
+            last_action = cls._get_cell_text(_driver, "cellLastAction")
+        except Exception as e:
+            logfire.error(f"Error extracting last action date for {bill.bill_number}: {e}")
         bill.last_action_dt = re.compile(r'\d{2}/\d{2}/\d{4}').match(last_action).group() if last_action else None
 
         # Caption Version & Text
@@ -87,7 +93,7 @@ class BillDetailInterface(InterfaceBase):
                     }
                     actions.append(action)
 
-            bill.action_list = pd.DataFrame(actions)
+            bill.action_list = pd.DataFrame(actions, index=None)
         except NoSuchElementException:
             bill.action_list = pd.DataFrame()
         return bill
@@ -125,20 +131,69 @@ class BillDetailInterface(InterfaceBase):
             amendments = []
             for row in amendment_rows:
                 try:
-                    amendment = create_amendment(row)
-                    amendments.append(amendment)
+                    cells = row.find_elements(By.TAG_NAME, "td")
+                    _amendment_dict = {
+                        'reading': cells[0].text.strip(),
+                        'number': cells[1].text.strip(),
+                        'author': cells[2].text.strip(),
+                        'coauthors': cells[3].text.strip() if cells[3].text.strip() else None,
+                        'amendment_type': cells[4].text.strip(),
+                        'action': cells[5].text.strip(),
+                        'action_date': cells[6].text.strip()
+                    }
+                    if len(cells) >= 8:
+                        links = cells[7].find_elements(By.TAG_NAME, "a")
+                        _amendment_dict["html_link"] = next((link.get_attribute("href") for link in links
+                                            if "html" in link.get_attribute("href").lower()), None)
+                        _amendment_dict["pdf_link"] = next((link.get_attribute("href") for link in links
+                                            if "pdf" in link.get_attribute("href").lower()), None)
+                    amendment = BILL_FACTORY.create_amendment(_amendment_dict)
+                    bill.amendments.append(amendment)
                 except (NoSuchElementException, IndexError) as e:
                     continue
 
-            bill.amendments = amendments
         except Exception as e:
-            bill.amendments = []
+            pass
         return bill
 
     @classmethod
     @inject.params(_driver=BrowserDriver)
-    def _extract_bill_stages(cls, _driver: BrowserDriver) -> List[BillStageProtocol]:
-        return create_bill_stages(cls, _driver)
+    def _extract_bill_stages(cls, bill: BillDetailProtocol, _driver: BrowserDriver) -> BillDetailProtocol:
+        """Extract all bill stage versions and their associated documents"""
+        # Find all rows except header
+        rows = _driver.find_elements(By.CSS_SELECTOR, "tr:not(:first-child)")
+
+        for row in rows:
+            # Skip empty rows
+            if not row.text.strip():
+                continue
+
+
+            # Get links from second column
+            links = row.find_elements(By.CSS_SELECTOR, "td:nth-child(2) a")
+
+            if not links:
+                continue
+
+            for link in links:
+                href = link.get_attribute("href")
+                if href.endswith(".pdf"):
+                    _stage_dict['pdf'] = href
+                elif href.endswith(".htm"):
+                     _stage_dict['txt'] = href
+                elif href.endswith(".docx"):
+                     _stage_dict['word_doc'] = href
+
+            # Get optional documents from remaining columns
+            _stage_dict['fiscal_note'] = cls._get_link_if_exists(row, 3)
+            _stage_dict['analysis'] = cls._get_link_if_exists(row, 4)
+            _stage_dict['witness_list'] = cls._get_link_if_exists(row, 5)
+            _stage_dict['summary'] = cls._get_link_if_exists(row, 6)
+
+            stage = BILL_FACTORY.create_bill_stage(_stage_dict)
+
+            bill.stages.append(stage)
+        return bill
 
     @classmethod
     def _get_link_if_exists(cls, row: WebElement, col_index: int) -> Optional[str]:
@@ -157,7 +212,7 @@ class BillListInterface(InterfaceBase):
 
     @classmethod
     @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _navigate_to_bill_page(cls, _chamber: ChamberTuple, _driver: BrowserDriver, _wait: BrowserWait):
+    def _navigate_to_bill_page(cls, _chamber: ChamberTuple, _lege_session_num: str,  _driver: BrowserDriver, _wait: BrowserWait):
         with logfire_context(f"BillListInterface._navigate_to_bill_page({_chamber.full})"):
             _driver.get("https://capitol.texas.gov/Home.aspx")
             _wait.until(EC.element_to_be_clickable((By.LINK_TEXT, f"{_chamber.full}"))).click()
@@ -166,7 +221,8 @@ class BillListInterface(InterfaceBase):
             _driver.get(filed_house_bills)
             _wait.until(EC.element_to_be_clickable((By.LINK_TEXT, f"Filed {_chamber.full} Bills")))
             filed_house_bills = _driver.find_element(By.LINK_TEXT, f"Filed {_chamber.full} Bills").get_attribute("href")
-            _driver.get(filed_house_bills)
+            leg_sess = parse_qs(urlparse(filed_house_bills).query).get('LegSess', [''])[0]
+            _driver.get(filed_house_bills.replace(leg_sess, _lege_session_num))
             _wait.until(EC.element_to_be_clickable((By.TAG_NAME, "table")))
 
     @staticmethod
@@ -193,26 +249,22 @@ class BillListInterface(InterfaceBase):
 
     @classmethod
     @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _build_bill_list(cls, chamber: ChamberTuple, _driver: BrowserDriver, _wait: BrowserWait) -> Dict[str, BillDetailProtocol]:
+    def _build_bill_list(cls, chamber: ChamberTuple, lege_session: str, _driver: BrowserDriver, _wait: BrowserWait) -> Dict[str, BillDetailProtocol]:
         with logfire_context(f"BillListInterface._build_bill_list({chamber.full})"):
-            cls._navigate_to_bill_page(_chamber=chamber)
+            cls._navigate_to_bill_page(_chamber=chamber, _lege_session_num=lege_session)
             bill_links = cls._get_bill_links(_chamber=chamber)
             bills = {}
-            bills_checked = logfire.metric_counter("bills_created")
             for bill in bill_links:
-                _detail = create_bill_detail(bill_number=bill[0], bill_url=bill[1])
+                _detail = BILL_FACTORY.create_bill_detail(bill_number=bill[0], bill_url=bill[1])
                 bills[_detail.bill_number] = _detail
-                bills_checked.add(1)
         return bills
 
     @classmethod
     def _build_bill_details(cls, bills: Dict[str, BillDetailProtocol]) -> Dict[str, BillDetailProtocol]:
         with logfire_context("BillListInterface._build_bill_details"):
-            bills_checked = logfire.metric_counter("bills_checked")
-            for bill in bills:
+            for _num, _bill in bills.items():
                 try:
-                    bills[bill] = BillDetailInterface.fetch_bill_details(bills[bill])
-                    bills_checked.add(1)
+                    bills[_num] = BillDetailInterface.fetch_bill_details(_bill)
                 except Exception as e:
-                    logfire.error(f"Error fetching details for bill {bill}: {e}")
+                    logfire.error(f"Error fetching details for bill {_num}: {e}")
         return bills
