@@ -16,6 +16,7 @@ dependencies = [
     "pandas>=2.2.3",
     "pydantic>=2.10.5",
     "requests>=2.32.3",
+    "scrapy>=2.12.0",
     "selenium>=4.28.0",
     "setuptools>=75.8.0",
     "sqlmodel>=0.0.22",

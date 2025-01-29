@@ -14,8 +14,6 @@ def scrubbing_callback(m: logfire.ScrubMatch):
         return m.value
 
 logfire.configure(scrubbing=logfire.ScrubbingOptions(callback=scrubbing_callback))
-logfire.instrument_system_metrics()
-
 logfire.instrument_system_metrics({
     'process.runtime.cpu.utilization': None,  
     'system.cpu.simple_utilization': None,  

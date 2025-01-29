@@ -2,21 +2,26 @@ from __future__ import annotations
 from typing import Optional, List, Dict
 
 from pydantic import Field as PydanticField
+from sqlmodel import Field as SQLModelField
 import pandas as pd
+from selenium.webdriver.common.virtual_authenticator import Protocol
 
 from src.txlege_bill_scraper.types import ChamberTuple
 from src.txlege_bill_scraper.bases import DBModelBase, NonDBModelBase
 
+class DocumentVersionLink(DBModelBase):
+    pdf: Optional[str] = None
+    txt: Optional[str] = None
+    word_doc: Optional[str] = None
 
 class BillStage(DBModelBase):
     version: str
-    pdf: str
-    txt: str
-    word_doc: str
-    fiscal_note: Optional[str] = None
-    analysis: Optional[str] = None
-    witness_list: Optional[str] = None
-    summary_of_action: Optional[str] = None
+    bill: Optional[DocumentVersionLink] = None
+    fiscal_note: Optional[DocumentVersionLink] = None
+    analysis: Optional[DocumentVersionLink] = None
+    witness_list: Optional[DocumentVersionLink] = None
+    committee_summary: Optional[DocumentVersionLink] = None
+    fiscal_impact_statements: Optional[Dict[str, DocumentVersionLink]] = None
 
 
 class Amendment(DBModelBase):
@@ -38,8 +43,9 @@ class BillDetail(DBModelBase):
     caption: Optional[str] = None
     last_action_dt: Optional[str] = None
     action_list: Optional[pd.DataFrame] = None
-    stages: Optional[List[BillStage]] = None
+    stages: Optional[Dict[str, BillStage]] = SQLModelField(default_factory=dict)
     amendments: Optional[List[Amendment]] = None
+    additional_documents: Optional[Dict[str, DocumentVersionLink]] = None
 
 
 class BillList(NonDBModelBase):

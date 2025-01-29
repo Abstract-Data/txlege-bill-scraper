@@ -6,8 +6,9 @@ from pathlib import Path
 from selenium.webdriver.common.by import By
 
 from legislator import LegislatorBase
-from src.txlege_bill_scraper.types import ChamberTuple, BrowserDriver
+from src.txlege_bill_scraper.types import ChamberTuple, BrowserDriver, BrowserWait
 from src.txlege_bill_scraper.models.bills import BillList
+from src.txlege_bill_scraper.factories.bills import create_bill_stages
 
 
 with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
@@ -170,3 +171,6 @@ house_bills.create_bill_details()
 
 # TODO: Deal with BillDetails references in Bill Interface Module to avoid ciruclar imports.
 # house_bills.generate_bills()
+
+# hb9 = BillDetail(bill_number='HB9', bill_url="https://capitol.texas.gov/BillLookup/History.aspx?LegSess=87R&Bill=HB9")
+# create_bill_stages(bill=hb9, _driver=BrowserDriver, _wait=BrowserWait)

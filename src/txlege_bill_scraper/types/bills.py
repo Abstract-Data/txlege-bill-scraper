@@ -1,16 +1,22 @@
 from __future__ import annotations
-from typing import Protocol, Optional, List
+from typing import Protocol, Optional, List, Dict
 import pandas as pd
+
+
+class DocumentVersionLinkProtocol(Protocol):
+    pdf: Optional[str] = None
+    txt: Optional[str] = None
+    word_doc: Optional[str] = None
 
 class BillStageProtocol(Protocol):
     version: str
-    pdf: str
-    txt: str
-    word_doc: str
-    fiscal_note: Optional[str]
-    analysis: Optional[str]
-    witness_list: Optional[str]
-    summary_of_action: Optional[str]
+    bill: Optional[DocumentVersionLinkProtocol] = None
+    fiscal_note: Optional[DocumentVersionLinkProtocol] = None
+    analysis: Optional[DocumentVersionLinkProtocol] = None
+    witness_list: Optional[DocumentVersionLinkProtocol] = None
+    committee_summary: Optional[DocumentVersionLinkProtocol] = None
+    additional_documents: Optional[Dict[str, DocumentVersionLinkProtocol]] = None
+    fiscal_impact_statements: Optional[Dict[str, DocumentVersionLinkProtocol]] = None
 
 class AmendmentProtocol(Protocol):
     reading: str
@@ -25,10 +31,11 @@ class AmendmentProtocol(Protocol):
 
 class BillDetailProtocol(Protocol):
     bill_url: str
-    bill_number: Optional[str]
-    status: Optional[str]
-    caption: Optional[str]
-    last_action_dt: Optional[str]
-    action_list: Optional[pd.DataFrame]
-    stages: Optional[List[BillStageProtocol]]
-    amendments: Optional[List[AmendmentProtocol]]
+    bill_number: Optional[str] = None
+    status: Optional[str] = None
+    caption: Optional[str] = None
+    last_action_dt: Optional[str] = None
+    action_list: Optional[pd.DataFrame] = None
+    stages: Optional[Dict[str, BillStageProtocol]] = None
+    amendments: Optional[List[AmendmentProtocol]] = None
+    additional_documents: Optional[Dict[str, DocumentVersionLinkProtocol]] = None
