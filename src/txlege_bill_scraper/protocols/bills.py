@@ -1,10 +1,7 @@
-from __future__ import annotations
 from typing import Protocol, Optional, List, Dict
-import pandas as pd
-from pydantic import HttpUrl
-from datetime import datetime, date, time
+from datetime import date, time
 
-from src.txlege_bill_scraper.types.committees import CommitteeDetailsProtocol, CommitteeBillStatusProtocol
+from .committees import CommitteeDetailsProtocol, CommitteeBillStatusProtocol
 
 
 class DocumentVersionLinkProtocol(Protocol):
@@ -29,7 +26,7 @@ class BillActionProtocol(Protocol):
     date: Optional[date]
     time: Optional[time]
     journal_page: Optional[str]
-    url: Optional[HttpUrl]
+    url: Optional[str]
 
 
 class AmendmentProtocol(Protocol):
@@ -50,7 +47,7 @@ class BillDetailProtocol(Protocol):
     caption_version: Optional[str] = None
     caption_text: Optional[str] = None
     last_action_dt: Optional[str] = None
-    action_list: Optional[pd.DataFrame] = None
+    action_list: Optional[list] = None
     stages: Optional[Dict[str, BillStageProtocol]] = None
     amendments: Optional[List[AmendmentProtocol]] = None
     additional_documents: Optional[Dict[str, DocumentVersionLinkProtocol]] = None

@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import SQLModel
 from inject import Binder, configure_once
 
-from src.txlege_bill_scraper.types import BrowserDriver, BrowserWait
+from src.txlege_bill_scraper.protocols import BrowserDriver, BrowserWait
 from src.txlege_bill_scraper.driver import BuildWebDriver
 
 # TODO: Figure out how to get dependency injection to work correctly.
@@ -27,14 +27,12 @@ def configure_injection() -> None:
 
 configure_injection()
 
-class AllModelBase(abc.ABC):
+
+class DBModelBase(SQLModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-class DBModelBase(SQLModel, AllModelBase):
-    pass
-
-class NonDBModelBase(BaseModel, AllModelBase):
-    pass
+class NonDBModelBase(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 class InterfaceBase(abc.ABC):
     pass

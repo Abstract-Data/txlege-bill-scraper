@@ -3,12 +3,10 @@ from typing import Optional, Dict
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
-from pydantic.alias_generators import to_snake
 import logfire
 import re
-import pandas as pd
 
-from src.txlege_bill_scraper.types import ChamberTuple
+from src.txlege_bill_scraper.protocols import ChamberTuple
 from src.txlege_bill_scraper.models.bills import BillDetail, BillStage, Amendment, DocumentVersionLink, FiscalImpactStatement
 from src.txlege_bill_scraper.models.committees import CommitteeDetails, CommitteeVoteCount, CommitteeBillStatus
 from src.txlege_bill_scraper.build_logger import LogFireLogger
@@ -79,6 +77,7 @@ def extract_basic_details(_bill: BillDetail, _chamber: ChamberTuple, _committees
         vote_pattern = r'Ayes=(\d+)\s*Nays=(\d+)\s*Present Not Voting=(\d+)\s*Absent=(\d+)'
         if match := re.match(vote_pattern, vote_text):
             vote_dict = CommitteeVoteCount(**{
+                'committee_bill_vote_id': _bill.bill_number,
                 'ayes': int(match.group(1)),
                 'nays': int(match.group(2)),
                 'present_not_voting': int(match.group(3)),
@@ -118,6 +117,7 @@ def extract_basic_details(_bill: BillDetail, _chamber: ChamberTuple, _committees
             _house_committee = _check_house_committee_
     
         _house_status = CommitteeBillStatus(
+            committee_bill_num=_bill.bill_number,
             status=_get_cell_content('cellComm1CommitteeStatus'),
             vote=_parse_committee_vote('cellComm1CommitteeVote')
         )
@@ -132,6 +132,7 @@ def extract_basic_details(_bill: BillDetail, _chamber: ChamberTuple, _committees
             _senate_committee = _check_senate_committee_
 
         _senate_status = CommitteeBillStatus(
+            committee_bill_num=_bill.bill_number,
             status=_get_cell_content('cellComm2CommitteeStatus'),
             vote=_parse_committee_vote('cellComm2CommitteeVote')
         )

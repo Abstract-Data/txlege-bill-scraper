@@ -1,4 +1,3 @@
-from __future__ import annotations
 from typing import List, Dict, Tuple
 from urllib.parse import parse_qs, urlparse
 
@@ -9,8 +8,8 @@ from selenium.common.exceptions import NoSuchElementException
 import inject
 
 from src.txlege_bill_scraper.bases import InterfaceBase, BrowserDriver, BrowserWait
-from src.txlege_bill_scraper.types import ChamberTuple
-from src.txlege_bill_scraper.types.bills import BillDetailProtocol
+from src.txlege_bill_scraper.protocols import ChamberTuple
+from src.txlege_bill_scraper.protocols.bills import BillDetailProtocol
 from src.txlege_bill_scraper.models.committees import CommitteeDetails
 import src.txlege_bill_scraper.factories.bills as BILL_FACTORY
 from src.txlege_bill_scraper.build_logger import LogFireLogger

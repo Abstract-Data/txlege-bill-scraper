@@ -1,28 +1,26 @@
-from __future__ import annotations
 from typing import Dict
 import tomli
 from pathlib import Path
 
 from selenium.webdriver.common.by import By
 
-from legislator import LegislatorBase
-from src.txlege_bill_scraper.types import ChamberTuple, BrowserDriver, BrowserWait
+# from legislator import LegislatorBase
+# from src.txlege_bill_scraper.protocols import ChamberTuple, BrowserDriver, BrowserWait
 from src.txlege_bill_scraper.models.bills import BillList
-from src.txlege_bill_scraper.factories.bills import create_bill_stages
 
 
-with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
-    urls: Dict = tomli.load(config)
-
-TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
-TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
-
-LEGISLATIVE_SESSION: str = "87R"
-
-MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
-
-def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
-    return _driver.find_element(by, value).get_attribute('href')
+# with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
+#     urls: Dict = tomli.load(config)
+#
+# TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
+# TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
+#
+# LEGISLATIVE_SESSION: str = "87R"
+#
+# MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
+#
+# def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
+#     return _driver.find_element(by, value).get_attribute('href')
 
 
 # class TxLegeLoader(NonDBModelBase):
@@ -164,12 +162,12 @@ def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
 
 # test = TxLegeLoader(Chamber.HOUSE)
 # test.get_legislators(driver)
-HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
-house_bills = BillList(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
-house_bills.create_bill_list()
-house_bills.create_bill_details()
+# HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
+# house_bills = BillList(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
+# house_bills.create_bill_list()
+# house_bills.create_bill_details()
 
-models = [x.model_dump() for x in house_bills.bills.values()]
+# models = [x.model_dump() for x in house_bills.bills.values()]
 # TODO: Deal with BillDetails references in Bill Interface Module to avoid ciruclar imports.
 # house_bills.generate_bills()
 
