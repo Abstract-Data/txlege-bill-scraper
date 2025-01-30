@@ -7,12 +7,10 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.common.exceptions import NoSuchElementException
 import inject
 
-from src.txlege_bill_scraper.bases import InterfaceBase, BrowserDriver, BrowserWait
-from src.txlege_bill_scraper.protocols import ChamberTuple
-from src.txlege_bill_scraper.protocols.bills import BillDetailProtocol
-from src.txlege_bill_scraper.models.committees import CommitteeDetails
-import src.txlege_bill_scraper.factories.bills as BILL_FACTORY
-from src.txlege_bill_scraper.build_logger import LogFireLogger
+from .bases import InterfaceBase, BrowserDriver, BrowserWait
+from .protocols import ChamberTuple, BillDetailProtocol, CommitteeDetailsProtocol
+from .factories import bills as BILL_FACTORY
+from .build_logger import LogFireLogger
 
 
 logfire_context = LogFireLogger.logfire_context
@@ -75,9 +73,10 @@ class BillListInterface(InterfaceBase):
     @classmethod
     @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
     def _build_bill_details(cls,
+                            bill_list_id: str,
                             bills: Dict[str, BillDetailProtocol],
                             chamber: ChamberTuple,
-                            committees: Dict[str, CommitteeDetails],
+                            committees: Dict[str, CommitteeDetailsProtocol],
                             _driver: BrowserDriver,
                             _wait: BrowserWait) -> Dict[str, BillDetailProtocol]:
         with logfire_context("BillListInterface._build_bill_details"):
@@ -86,7 +85,7 @@ class BillListInterface(InterfaceBase):
                 _wait.until(EC.presence_of_element_located((By.ID, "Form1")))
 
                 # Extract bill stages
-                BILL_FACTORY.extract_basic_details(_bill=_bill, _chamber=chamber, _committees=committees, _driver=_driver)
+                BILL_FACTORY.extract_basic_details(_bill_list_id=bill_list_id, _bill=_bill, _chamber=chamber, _committees=committees, _driver=_driver)
                 BILL_FACTORY.extract_action_history(_bill, _driver)
                 BILL_FACTORY.create_bill_stages(_bill, _driver, _wait)
                 BILL_FACTORY.extract_amendments(_bill, _driver)

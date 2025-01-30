@@ -3,12 +3,10 @@ import pandas as pd
 from pydantic import HttpUrl
 from datetime import datetime, date, time
 
-from src.txlege_bill_scraper.protocols import ChamberTuple
-
 
 class CommitteeDetailsProtocol(Protocol):
     name: str
-    chamber: ChamberTuple
+    chamber: "ChamberTuple"
     committee_bills: List["BillDetailProtocol"] = []
 
     def __repr__(self):

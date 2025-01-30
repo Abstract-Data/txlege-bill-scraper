@@ -7,8 +7,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import SQLModel
 from inject import Binder, configure_once
 
-from src.txlege_bill_scraper.protocols import BrowserDriver, BrowserWait
-from src.txlege_bill_scraper.driver import BuildWebDriver
+from .protocols import BrowserDriver, BrowserWait
+from .driver import BuildWebDriver
 
 # TODO: Figure out how to get dependency injection to work correctly.
 

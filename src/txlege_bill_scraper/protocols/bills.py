@@ -1,7 +1,6 @@
 from typing import Protocol, Optional, List, Dict
 from datetime import date, time
-
-from .committees import CommitteeDetailsProtocol, CommitteeBillStatusProtocol
+from .committees import CommitteeDetailsProtocol, CommitteeBillStatusProtocol, CommitteeVoteCountProtocol
 
 
 class DocumentVersionLinkProtocol(Protocol):
@@ -51,7 +50,7 @@ class BillDetailProtocol(Protocol):
     stages: Optional[Dict[str, BillStageProtocol]] = None
     amendments: Optional[List[AmendmentProtocol]] = None
     additional_documents: Optional[Dict[str, DocumentVersionLinkProtocol]] = None
-    house_committee: Optional[CommitteeDetailsProtocol] = None
-    house_committee_status: Optional[Dict[str, CommitteeBillStatusProtocol]] = None
-    senate_committee: Optional[CommitteeDetailsProtocol] = None
-    senate_committee_status: Optional[Dict[str, CommitteeBillStatusProtocol]] = None
+    house_committee: Optional["CommitteeDetailsProtocol"] = None
+    house_committee_status: Optional[Dict[str, "CommitteeBillStatusProtocol"]] = None
+    senate_committee: Optional["CommitteeDetailsProtocol"] = None
+    senate_committee_status: Optional[Dict[str, "CommitteeBillStatusProtocol"]] = None

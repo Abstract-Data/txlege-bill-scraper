@@ -6,10 +6,14 @@ from selenium.common.exceptions import NoSuchElementException
 import logfire
 import re
 
-from src.txlege_bill_scraper.protocols import ChamberTuple
-from src.txlege_bill_scraper.models.bills import BillDetail, BillStage, Amendment, DocumentVersionLink, FiscalImpactStatement
-from src.txlege_bill_scraper.models.committees import CommitteeDetails, CommitteeVoteCount, CommitteeBillStatus
-from src.txlege_bill_scraper.build_logger import LogFireLogger
+from ..protocols import ChamberTuple
+from ..models import (
+    CommitteeDetails, CommitteeVoteCount, 
+    CommitteeBillStatus, BillDetail, 
+    DocumentVersionLink, BillStage, 
+    FiscalImpactStatement, Amendment, DocumentType
+)
+from ..build_logger import LogFireLogger
 
 logfire_context = LogFireLogger.logfire_context
 
@@ -29,7 +33,7 @@ def _get_cell_text(cell_id: str, _driver) -> Optional[str]:
     except NoSuchElementException:
         return None
 
-def create_bill_detail(bill_number: str, bill_url: str) -> BillDetail:
+def create_bill_detail(bill_list_id: str, bill_number: str, bill_url: str) -> BillDetail:
     """Create a BillDetail object.
 
     :param bill_number: The bill number.
@@ -39,10 +43,10 @@ def create_bill_detail(bill_number: str, bill_url: str) -> BillDetail:
     :return: The created BillDetail object.
     :rtype: BillDetail
     """
-    return BillDetail(bill_number=bill_number, bill_url=bill_url)
+    return BillDetail(bill_list_id=bill_list_id, bill_number=bill_number, bill_url=bill_url)
 
 
-def extract_basic_details(_bill: BillDetail, _chamber: ChamberTuple, _committees: Dict[str, CommitteeDetails], _driver) -> BillDetail:
+def extract_basic_details(_bill_list_id: str, _bill: BillDetail, _chamber: ChamberTuple, _committees: Dict[str, CommitteeDetails], _driver) -> BillDetail:
     """Extract basic bill information.
 
     :param bill: The BillDetail object to update.
@@ -77,7 +81,7 @@ def extract_basic_details(_bill: BillDetail, _chamber: ChamberTuple, _committees
         vote_pattern = r'Ayes=(\d+)\s*Nays=(\d+)\s*Present Not Voting=(\d+)\s*Absent=(\d+)'
         if match := re.match(vote_pattern, vote_text):
             vote_dict = CommitteeVoteCount(**{
-                'committee_bill_vote_id': _bill.bill_number,
+                'committee_bill_num': _bill.bill_number,
                 'ayes': int(match.group(1)),
                 'nays': int(match.group(2)),
                 'present_not_voting': int(match.group(3)),
@@ -110,13 +114,14 @@ def extract_basic_details(_bill: BillDetail, _chamber: ChamberTuple, _committees
     _bill.companion = _get_cell_content('cellCompanions')
     
     if _house_committee_exists := _get_cell_content('cellComm1Committee'):
-        _check_house_committee_ = CommitteeDetails(name=_house_committee_exists, chamber='House')
+        _check_house_committee_ = CommitteeDetails(bill_list_id=_bill_list_id, billname=_house_committee_exists, chamber='House')
         if _check_house_committee_.__hash__() in _committees:
             _house_committee = _committees[_check_house_committee_.__hash__()]
         else:
             _house_committee = _check_house_committee_
     
         _house_status = CommitteeBillStatus(
+            committee_name=_house_committee.name,
             committee_bill_num=_bill.bill_number,
             status=_get_cell_content('cellComm1CommitteeStatus'),
             vote=_parse_committee_vote('cellComm1CommitteeVote')
@@ -132,6 +137,7 @@ def extract_basic_details(_bill: BillDetail, _chamber: ChamberTuple, _committees
             _senate_committee = _check_senate_committee_
 
         _senate_status = CommitteeBillStatus(
+            committee_name=_senate_committee.name,
             committee_bill_num=_bill.bill_number,
             status=_get_cell_content('cellComm2CommitteeStatus'),
             vote=_parse_committee_vote('cellComm2CommitteeVote')
@@ -234,14 +240,39 @@ def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
             if len(cells) < 6:
                 continue
             __stage_name = cells[0].text.strip()
-            _stage_dict[__stage_name] = BillStage(**{
-                'version': __stage_name,
-                'bill': get_links_from_cell(cells[1]),
-                'fiscal_note': get_links_from_cell(cells[2]),
-                'analysis': get_links_from_cell(cells[3]),
-                'witness_list': get_links_from_cell(cells[4]),
-                'committee_summary': get_links_from_cell(cells[5])
-            })
+            _stage_dict[__stage_name] = 
+            _stage_obj = BillStage(version=__stage_name, bill_num=bill.bill_number)
+
+            _stage_obj.bill = DocumentVersionLink(
+                    document_type=DocumentType.BILL, 
+                    bill_number=bill.bill_number,
+                    bill_stage_id=_stage_obj.bill_stage_id,
+                    **get_links_from_cell(cells[1])) if get_links_from_cell(cells[1]) else None
+            
+            _stage_obj.fiscal_note = DocumentVersionLink(
+                document_type=DocumentType.FISCAL_NOTE,
+                bill_number=bill.bill_number,
+                bill_stage_id=_stage_obj.bill_stage_id,
+                **get_links_from_cell(cells[2])) if get_links_from_cell(cells[2]) else None
+            
+            _stage_obj.analysis = DocumentVersionLink(
+                document_type=DocumentType.ANALYSIS,
+                bill_number=bill.bill_number,
+                bill_stage_id=_stage_obj.bill_stage_id,
+                **get_links_from_cell(cells[3])) if get_links_from_cell(cells[3]) else None
+            
+            _stage_obj.witness_list = DocumentVersionLink(
+                document_type=DocumentType.WITNESS_LIST,
+                bill_number=bill.bill_number,
+                bill_stage_id=_stage_obj.bill_stage_id,
+                **get_links_from_cell(cells[4])) if get_links_from_cell(cells[4]) else None
+            
+            _stage_obj.committee_summary = DocumentVersionLink(
+                document_type=DocumentType.COMMITTEE_SUMMARY,
+                bill_number=bill.bill_number,
+                bill_stage_id=_stage_obj.bill_stage_id,
+                **get_links_from_cell(cells[5])) if get_links_from_cell(cells[5]) else None
+            _stage_dict[__stage_name] = _stage_obj
             _stage_dict.pop('Additional Documents:', None)
 
             bill.stages.update(_stage_dict)
@@ -268,7 +299,11 @@ def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
                         'txt': link.get_attribute('href')
                     }
 
-            bill.additional_documents = {k: DocumentVersionLink(**v) for k, v in docs.items() if v}
+            bill.additional_documents = {
+                k: DocumentVersionLink(
+                    bill_number=bill.bill_number, 
+                    document_type=DocumentType.ADDITIONAL_DOCUMENT, 
+                    **v) for k, v in docs.items() if v}
             return
         except NoSuchElementException:
             return None
@@ -298,8 +333,7 @@ def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
                         bill.stages[version].fiscal_impact_statements = (
                             FiscalImpactStatement(
                                 version=version, 
-                                released_by=impact_link_type.text,
-                                documents={determine_doc_type(impact_link): impact_link}
+                                released_by=impact_link_type.text
                             )
                         )
                     return
@@ -324,7 +358,7 @@ def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
         except NoSuchElementException:
             pass
 
-        return DocumentVersionLink(**links) if links else None
+        return links if links else None
 
     def determine_doc_type(url: str) -> str:
         """Determine document type from URL.
@@ -385,6 +419,7 @@ def extract_amendments(bill: BillDetail, _driver: "BrowserDriver") -> BillDetail
             try:
                 cells = row.find_elements(By.TAG_NAME, "td")
                 _amendment_dict = {
+                    'bill_num': bill.bill_number,
                     'reading': cells[0].text.strip(),
                     'number': cells[1].text.strip(),
                     'author': cells[2].text.strip(),
@@ -407,3 +442,4 @@ def extract_amendments(bill: BillDetail, _driver: "BrowserDriver") -> BillDetail
     except Exception as e:
         pass
     return bill
+

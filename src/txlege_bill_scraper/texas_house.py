@@ -5,8 +5,8 @@ from pathlib import Path
 from selenium.webdriver.common.by import By
 
 # from legislator import LegislatorBase
-# from src.txlege_bill_scraper.protocols import ChamberTuple, BrowserDriver, BrowserWait
-from src.txlege_bill_scraper.models.bills import BillList
+from src.txlege_bill_scraper.protocols import ChamberTuple, BrowserDriver, BrowserWait
+from src.txlege_bill_scraper.models.bill_list import BillList
 
 
 # with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
@@ -15,7 +15,7 @@ from src.txlege_bill_scraper.models.bills import BillList
 # TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
 # TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
 #
-# LEGISLATIVE_SESSION: str = "87R"
+LEGISLATIVE_SESSION: str = "87R"
 #
 # MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
 #
@@ -162,8 +162,8 @@ from src.txlege_bill_scraper.models.bills import BillList
 
 # test = TxLegeLoader(Chamber.HOUSE)
 # test.get_legislators(driver)
-# HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
-# house_bills = BillList(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
+HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
+house_bills = BillList(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
 # house_bills.create_bill_list()
 # house_bills.create_bill_details()
 
