@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.115.7",
     "icecream>=2.1.4",
     "inject>=5.2.1",
+    "ipython>=8.31.0",
     "logfire[system-metrics]>=3.3.0",
     "pandas>=2.2.3",
     "pydantic>=2.10.5",

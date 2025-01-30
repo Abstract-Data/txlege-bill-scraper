@@ -169,6 +169,7 @@ house_bills = BillList(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
 house_bills.create_bill_list()
 house_bills.create_bill_details()
 
+models = [x.model_dump() for x in house_bills.bills.values()]
 # TODO: Deal with BillDetails references in Bill Interface Module to avoid ciruclar imports.
 # house_bills.generate_bills()
 

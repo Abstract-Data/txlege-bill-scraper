@@ -1,162 +1,22 @@
 from __future__ import annotations
-from typing import List, Optional, Dict, Tuple, Type
-import re
+from typing import List, Dict, Tuple
 from urllib.parse import parse_qs, urlparse
 
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.common.exceptions import NoSuchElementException
-
-
-import pandas as pd
 import inject
-import logfire
+
 from src.txlege_bill_scraper.bases import InterfaceBase, BrowserDriver, BrowserWait
 from src.txlege_bill_scraper.types import ChamberTuple
 from src.txlege_bill_scraper.types.bills import BillDetailProtocol
+from src.txlege_bill_scraper.models.committees import CommitteeDetails
 import src.txlege_bill_scraper.factories.bills as BILL_FACTORY
 from src.txlege_bill_scraper.build_logger import LogFireLogger
 
 
 logfire_context = LogFireLogger.logfire_context
-
-class BillDetailInterface(InterfaceBase):
-
-    @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def fetch_bill_details(cls, bill: BillDetailProtocol, _driver: BrowserDriver, _wait: BrowserWait) -> BillDetailProtocol:
-        _driver.get(bill.bill_url)
-        _wait.until(EC.presence_of_element_located((By.ID, "Form1")))
-
-        # Extract bill stages
-        bill = cls._extract_basic_details(bill)
-        bill = cls._extract_action_history(bill)
-        bill = cls._extract_bill_stages(bill)
-        bill = cls._extract_amendments(bill)
-        return bill
-
-    @classmethod
-    @inject.params(_driver=BrowserDriver)
-    def _extract_basic_details(cls, bill: BillDetailProtocol, _driver: BrowserDriver) -> BillDetailProtocol:
-        """Extract basic bill information"""
-        # Last Action
-        try:
-            last_action = cls._get_cell_text(_driver, "cellLastAction")
-        except Exception as e:
-            logfire.error(f"Error extracting last action date for {bill.bill_number}: {e}")
-        bill.last_action_dt = re.compile(r'\d{2}/\d{2}/\d{4}').match(last_action).group() if last_action else None
-
-        # Caption Version & Text
-        bill.status = cls._get_cell_text(_driver, "cellCaptionVersion")
-        bill.caption = cls._get_cell_text(_driver, "cellCaptionText")
-        return bill
-
-    @classmethod
-    @inject.params(_driver=BrowserDriver)
-    def _extract_action_history(cls, bill: BillDetailProtocol, _driver: BrowserDriver) -> BillDetailProtocol:
-        """Extract bill action history"""
-        try:
-            action_rows = _driver.find_elements(By.CSS_SELECTOR, "#usrBillInfoActions_tblActions + table tr:not(:first-child)")
-
-            actions = []
-            for row in action_rows:
-                cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) >= 6:
-                    action = {
-                        'Chamber': cells[0].text.strip(),
-                        'Description': cells[1].text.strip(),
-                        'Comment': cells[2].text.strip(),
-                        'Date': cells[3].text.strip(),
-                        'Time': cells[4].text.strip(),
-                        'Journal_Page': cells[5].text.strip()
-                    }
-                    actions.append(action)
-
-            bill.action_list = pd.DataFrame(actions, index=None)
-        except NoSuchElementException:
-            bill.action_list = pd.DataFrame()
-        return bill
-
-    @classmethod
-    @inject.params(_driver=BrowserDriver)
-    def _get_cell_text(cls, _driver: BrowserDriver, cell_id: str) -> Optional[str]:
-        """Helper method to safely get cell text"""
-        try:
-            return _driver.find_element(By.ID, cell_id).text.strip()
-        except NoSuchElementException:
-            return None
-
-    @classmethod
-    @inject.params(_driver=BrowserDriver)
-    def _extract_amendments(cls, bill: BillDetailProtocol, _driver: BrowserDriver) -> BillDetailProtocol:
-        """Extract all amendments and their associated documents"""
-        amendments_url = bill.bill_url.replace("Text.aspx", "Amendments.aspx")
-        _driver.get(amendments_url)
-        try:
-            # Check if any amendments exist
-            amendment_count = _driver.find_element(By.ID, "usrBillInfoAmendments_lblAmendments").text
-            if "0" in amendment_count:
-                bill.amendments = []
-                return bill
-
-            amendment_table = _driver.find_element(By.CSS_SELECTOR, "table[bordercolor='#d0d0d0']")
-            if not amendment_table:
-                bill.amendments = []
-                return bill
-
-            amendment_rows = amendment_table.find_elements(By.TAG_NAME, "tr")[1:]  # Skip header
-            if not amendment_rows:
-                bill.amendments = []
-                return bill
-
-            amendments = []
-            for row in amendment_rows:
-                try:
-                    cells = row.find_elements(By.TAG_NAME, "td")
-                    _amendment_dict = {
-                        'reading': cells[0].text.strip(),
-                        'number': cells[1].text.strip(),
-                        'author': cells[2].text.strip(),
-                        'coauthors': cells[3].text.strip() if cells[3].text.strip() else None,
-                        'amendment_type': cells[4].text.strip(),
-                        'action': cells[5].text.strip(),
-                        'action_date': cells[6].text.strip()
-                    }
-                    if len(cells) >= 8:
-                        links = cells[7].find_elements(By.TAG_NAME, "a")
-                        _amendment_dict["html_link"] = next((link.get_attribute("href") for link in links
-                                            if "html" in link.get_attribute("href").lower()), None)
-                        _amendment_dict["pdf_link"] = next((link.get_attribute("href") for link in links
-                                            if "pdf" in link.get_attribute("href").lower()), None)
-                    amendment = BILL_FACTORY.create_amendment(_amendment_dict)
-                    bill.amendments.append(amendment)
-                except (NoSuchElementException, IndexError) as e:
-                    continue
-
-        except Exception as e:
-            pass
-        return bill
-
-    @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _extract_bill_stages(cls, bill: BillDetailProtocol, _driver: BrowserDriver, _wait: BrowserWait) -> BillDetailProtocol:
-        """Extract all bill stage versions and their associated documents"""
-        logfire.debug(f"Extracting bill stages for {bill.bill_number}")
-        BILL_FACTORY.create_bill_stages(bill, _driver, _wait)
-        return bill
-
-    @classmethod
-    def _get_link_if_exists(cls, row: WebElement, col_index: int) -> Optional[str]:
-        """Helper to safely get href from cell if link exists"""
-        try:
-            link = row.find_element(By.CSS_SELECTOR, f"td:nth-child({col_index}) a")
-            return link.get_attribute("href")
-        except NoSuchElementException:
-            return None
-
-
-
 
 class BillListInterface(InterfaceBase):
 
@@ -214,11 +74,22 @@ class BillListInterface(InterfaceBase):
         return bills
 
     @classmethod
-    def _build_bill_details(cls, bills: Dict[str, BillDetailProtocol]) -> Dict[str, BillDetailProtocol]:
+    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
+    def _build_bill_details(cls,
+                            bills: Dict[str, BillDetailProtocol],
+                            chamber: ChamberTuple,
+                            committees: Dict[str, CommitteeDetails],
+                            _driver: BrowserDriver,
+                            _wait: BrowserWait) -> Dict[str, BillDetailProtocol]:
         with logfire_context("BillListInterface._build_bill_details"):
-            for _bill in bills:
-                try:
-                    BillDetailInterface.fetch_bill_details(bills[_bill])
-                except Exception as e:
-                    logfire.error(f"Error fetching details for bill {bills[_bill].bill_number}: {e}")
+            for _num, _bill in bills.items():
+                _driver.get(_bill.bill_url)
+                _wait.until(EC.presence_of_element_located((By.ID, "Form1")))
+
+                # Extract bill stages
+                BILL_FACTORY.extract_basic_details(_bill=_bill, _chamber=chamber, _committees=committees, _driver=_driver)
+                BILL_FACTORY.extract_action_history(_bill, _driver)
+                BILL_FACTORY.create_bill_stages(_bill, _driver, _wait)
+                BILL_FACTORY.extract_amendments(_bill, _driver)
+                bills[_num] = _bill
         return bills

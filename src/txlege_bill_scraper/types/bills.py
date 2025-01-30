@@ -1,6 +1,10 @@
 from __future__ import annotations
 from typing import Protocol, Optional, List, Dict
 import pandas as pd
+from pydantic import HttpUrl
+from datetime import datetime, date, time
+
+from src.txlege_bill_scraper.types.committees import CommitteeDetailsProtocol, CommitteeBillStatusProtocol
 
 
 class DocumentVersionLinkProtocol(Protocol):
@@ -18,6 +22,16 @@ class BillStageProtocol(Protocol):
     additional_documents: Optional[Dict[str, DocumentVersionLinkProtocol]] = None
     fiscal_impact_statements: Optional[Dict[str, DocumentVersionLinkProtocol]] = None
 
+class BillActionProtocol(Protocol):
+    chamber: str
+    description: str
+    comment: Optional[str]
+    date: Optional[date]
+    time: Optional[time]
+    journal_page: Optional[str]
+    url: Optional[HttpUrl]
+
+
 class AmendmentProtocol(Protocol):
     reading: str
     number: str
@@ -33,9 +47,14 @@ class BillDetailProtocol(Protocol):
     bill_url: str
     bill_number: Optional[str] = None
     status: Optional[str] = None
-    caption: Optional[str] = None
+    caption_version: Optional[str] = None
+    caption_text: Optional[str] = None
     last_action_dt: Optional[str] = None
     action_list: Optional[pd.DataFrame] = None
     stages: Optional[Dict[str, BillStageProtocol]] = None
     amendments: Optional[List[AmendmentProtocol]] = None
     additional_documents: Optional[Dict[str, DocumentVersionLinkProtocol]] = None
+    house_committee: Optional[CommitteeDetailsProtocol] = None
+    house_committee_status: Optional[Dict[str, CommitteeBillStatusProtocol]] = None
+    senate_committee: Optional[CommitteeDetailsProtocol] = None
+    senate_committee_status: Optional[Dict[str, CommitteeBillStatusProtocol]] = None
