@@ -16,6 +16,7 @@ class DocumentVersionLink(DBModelBase, table=True):
     pdf: Optional[str] = None
     txt: Optional[str] = None
     word_doc: Optional[str] = None
+    fiscal_impact_statements: Optional["FiscalImpactStatement"] = Relationship(back_populates="documents")
 
 class FiscalImpactStatement(DBModelBase, table=True):
     fiscal_impact_statement_id: int = SQLModelField(primary_key=True)
@@ -66,14 +67,12 @@ class BillDetail(DBModelBase, table=True):
     last_action_dt: Optional[str] = None
     action_list: Optional[pd.DataFrame] = None
     stages: Optional[Dict[str, BillStage]] = SQLModelField(default_factory=dict)
-    amendments: Optional[list[Amendment]] = None
+    amendments: Optional[list[Amendment]] = Relationship(back_populates="bill_detail")
     additional_documents: Optional[Dict[str, DocumentVersionLink]] = None
-    house_committee: Optional[CommitteeDetails] = None
-    house_committee_status: Optional[Dict[str, CommitteeBillStatus]] = None
-    senate_committee: Optional[CommitteeDetails] = None
-    senate_committee_status: Optional[Dict[str, CommitteeBillStatus]] = None
-
-
+    house_committee: Optional[CommitteeDetails] = Relationship(back_populates="bill_detail")
+    house_committee_status: Optional[Dict[str, CommitteeBillStatus]] = Relationship(back_populates="bill_detail")
+    senate_committee: Optional[CommitteeDetails] = Relationship(back_populates="bill_detail")
+    senate_committee_status: Optional[Dict[str, CommitteeBillStatus]] = Relationship(back_populates="bill_detail")
 
 class BillList(DBModelBase, table=True):
     bill_list_id: str = SQLModelField(primary_key=True)

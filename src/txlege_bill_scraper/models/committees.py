@@ -1,7 +1,6 @@
-
 from sqlmodel import Field as SQLModelField, Relationship
 
-from src.txlege_bill_scraper.types import ChamberTuple
+from src/txlege_bill_scraper.types import ChamberTuple
 from src.txlege_bill_scraper.bases import DBModelBase, NonDBModelBase
 
 
