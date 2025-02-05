@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from texas_house import TxLegeLoader
+from .texas_house import TxLegeLoader
 #
 house87 = TxLegeLoader("house")
 house88 = TxLegeLoader("house", lege_session="88R")

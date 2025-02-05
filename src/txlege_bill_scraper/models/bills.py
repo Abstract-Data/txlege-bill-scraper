@@ -35,8 +35,9 @@ class FiscalImpactStatement(DBModelBase, table=True):
     released_by: str
     documents: list["DocumentVersionLink"] = Relationship(
         back_populates="fiscal_impact_statement",
-        sa_relationship_kwargs={
-            "primaryjoin": "and_(FiscalImpactStatement.fiscal_impact_statement_id==DocumentVersionLink.fiscal_impact_id, "
+        sa_relationship_kwargs= {
+            "primaryjoin":
+                "and_(FiscalImpactStatement.fiscal_impact_statement_id==DocumentVersionLink.fiscal_impact_id, "
                           "DocumentVersionLink.document_type=='fiscal_impact')",
             "lazy": "selectin"
         }
@@ -46,7 +47,10 @@ class FiscalImpactStatement(DBModelBase, table=True):
 class BillStage(DBModelBase, table=True):
     bill_stage_id: int = SQLModelField(primary_key=True)
     bill_num: str = SQLModelField(foreign_key="billdetail.bill_number")
-    fiscal_impact_statements_id: Optional[int] = SQLModelField(default=None, foreign_key="fiscalimpactstatement.fiscal_impact_statement_id")
+    fiscal_impact_statements_id: Optional[int] = SQLModelField(
+        default=None,
+        foreign_key="fiscalimpactstatement.fiscal_impact_statement_id"
+    )
     version: str
     documents: list[DocumentVersionLink] = Relationship(
         back_populates="bill_stage",
@@ -119,10 +123,14 @@ class Amendment(DBModelBase, table=True):
 class BillDetail(DBModelBase, table=True):
     bill_url: str = SQLModelField(primary_key=True)
     bill_number: str
+    companion: Optional[str] = SQLModelField(default=None)
     bill_list_id: Optional[str] = SQLModelField(default=None, foreign_key="billlist.bill_list_id")
+    author: str
+    sponsor: Optional[str] = SQLModelField(default=None)
     caption_version: Optional[str] = SQLModelField(default=None)
     caption_text: Optional[str] = SQLModelField(default=None)
     last_action_dt: Optional[str] = SQLModelField(default=None)
+    subjects: list[str] = SQLModelField(default_factory=list, sa_type=JSON)
     action_list: list = SQLModelField(default_factory=list, sa_type=JSON)
     stages: list["BillStage"] = Relationship(back_populates="bill")
     amendments: list["Amendment"] = Relationship(back_populates="bill_detail")

@@ -17,6 +17,9 @@ class CommitteeDetails(DBModelBase, table=True):
     )
     bill_list: "BillList" = Relationship(back_populates="committees")
 
+    def __hash__(self):
+        return hash(self.name)
+
     def __repr__(self):
         return f"{self.name} Committee for the {self.chamber} Chamber"
 

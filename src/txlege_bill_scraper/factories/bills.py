@@ -1,5 +1,5 @@
 # factories/bill_factory.py
-from typing import Optional, Dict
+from typing import Optional, Dict, Any, List
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
@@ -7,7 +7,7 @@ import logfire
 import re
 
 from ..protocols import ChamberTuple
-from ..models import (
+from ..models.bills import (
     CommitteeDetails, CommitteeVoteCount, 
     CommitteeBillStatus, BillDetail, 
     DocumentVersionLink, BillStage, 
@@ -33,24 +33,40 @@ def _get_cell_text(cell_id: str, _driver) -> Optional[str]:
     except NoSuchElementException:
         return None
 
-def create_bill_detail(bill_list_id: str, bill_number: str, bill_url: str) -> BillDetail:
+def create_bill_detail(
+        _bill_list_id: str,
+        _bill_number: str,
+        _bill_url: str) -> BillDetail:
     """Create a BillDetail object.
 
-    :param bill_number: The bill number.
-    :type bill_number: str
-    :param bill_url: The URL of the bill.
-    :type bill_url: str
+    :param _bill_list_id:
+    :param _bill_number: The bill number.
+    :type _bill_number: str
+    :param _bill_url: The URL of the bill.
+    :type _bill_url: str
     :return: The created BillDetail object.
     :rtype: BillDetail
     """
-    return BillDetail(bill_list_id=bill_list_id, bill_number=bill_number, bill_url=bill_url)
+    return BillDetail(
+        bill_list_id=_bill_list_id,
+        bill_number=_bill_number,
+        bill_url=_bill_url
+    )
 
 
-def extract_basic_details(_bill_list_id: str, _bill: BillDetail, _chamber: ChamberTuple, _committees: Dict[str, CommitteeDetails], _driver) -> BillDetail:
+def extract_basic_details(
+        _bill_list_id: str,
+        _bill: BillDetail,
+        _chamber: ChamberTuple,
+        _committees: List[CommitteeDetails],
+        _driver) -> BillDetail:
     """Extract basic bill information.
 
-    :param bill: The BillDetail object to update.
-    :type bill: BillDetail
+    :param _committees:
+    :param _bill_list_id:
+    :param _chamber:
+    :param _bill: The BillDetail object to update.
+    :type _bill: BillDetail
     :param _driver: The Selenium WebDriver instance.
     :type _driver: WebDriver
     :return: The updated BillDetail object.
@@ -71,25 +87,26 @@ def extract_basic_details(_bill_list_id: str, _bill: BillDetail, _chamber: Chamb
         except NoSuchElementException:
             return None
         
-    def _parse_committee_vote(vote_text: str) -> dict:
+    def _parse_committee_vote(vote_text: str) -> CommitteeVoteCount | None:
         """Parse committee vote string into components."""
-        vote_dict = {}
         if not vote_text:
-            return vote_dict
+            return None
             
         # Extract vote counts using regex
         vote_pattern = r'Ayes=(\d+)\s*Nays=(\d+)\s*Present Not Voting=(\d+)\s*Absent=(\d+)'
         if match := re.match(vote_pattern, vote_text):
-            vote_dict = CommitteeVoteCount(**{
-                'committee_bill_num': _bill.bill_number,
-                'ayes': int(match.group(1)),
-                'nays': int(match.group(2)),
-                'present_not_voting': int(match.group(3)),
-                'absent': int(match.group(4))
-            })
-        return vote_dict
+            vote_model = CommitteeVoteCount(
+                **{
+                    'committee_bill_num': _bill.bill_number,
+                    'ayes': int(match.group(1)),
+                    'nays': int(match.group(2)),
+                    'present_not_voting': int(match.group(3)),
+                    'absent': int(match.group(4))
+                }
+            )
+            return vote_model
     
-    def _get_subjects(driver) -> list[str]:
+    def _get_subjects(driver = _driver) -> list[str]:
         """Extract and split subjects from cell."""
         try:
             subjects_cell = driver.find_element(By.ID, "cellSubjects")
@@ -105,59 +122,86 @@ def extract_basic_details(_bill_list_id: str, _bill: BillDetail, _chamber: Chamb
         except NoSuchElementException:
             return []
     
-    _bill.last_action_dt = re.compile(r'\d{2}/\d{2}/\d{4}').match(_get_cell_content('cellLastAction')).group() if _get_cell_content('cellLastAction') else None
+    _bill.last_action_dt = (
+        re
+        .compile(r'\d{2}/\d{2}/\d{4}')
+        .match(
+            _get_cell_content('cellLastAction')
+        )
+        .group() if _get_cell_content('cellLastAction') else None
+    )
     _bill.caption_version = _get_cell_content('cellCaptionVersion')
     _bill.caption_text = _get_cell_content('cellCaptionText')
     _bill.author = _get_cell_content('cellAuthors')
     _bill.sponsor = _get_cell_content('cellSponsors')
-    _bill.subjects = _get_subjects('cellSubjects')
+    _bill.subjects = _get_subjects()
     _bill.companion = _get_cell_content('cellCompanions')
     
     if _house_committee_exists := _get_cell_content('cellComm1Committee'):
-        _check_house_committee_ = CommitteeDetails(bill_list_id=_bill_list_id, billname=_house_committee_exists, chamber='House')
-        if _check_house_committee_.__hash__() in _committees:
-            _house_committee = _committees[_check_house_committee_.__hash__()]
+        _check_house_committee_ = CommitteeDetails(
+            name=_house_committee_exists if isinstance(_house_committee_exists, str) else None,
+            bill_list_id=_bill_list_id,
+            chamber='House'
+        )
+        if next((_check_house_committee_.__hash__() for _ in _committees), None) is not None:
+            _house_committee = next((_ for _ in _committees if _check_house_committee_.__hash__() == _.__hash__()))
         else:
             _house_committee = _check_house_committee_
-    
-        _house_status = CommitteeBillStatus(
-            committee_name=_house_committee.name,
-            committee_bill_num=_bill.bill_number,
-            status=_get_cell_content('cellComm1CommitteeStatus'),
-            vote=_parse_committee_vote('cellComm1CommitteeVote')
-        )
-        _bill.house_committee = _house_committee
-        _bill.house_committee_status = _house_status
+
+        _house_committee.committee_bills.append(_bill)
+
+        if _house_status := _get_cell_content('cellComm1CommitteeStatus'):
+            _house_status = CommitteeBillStatus(
+                committee_name=_house_committee.name,
+                committee_bill_num=_bill.bill_number,
+                status=_house_status,
+            )
+            if _house_vote := _parse_committee_vote('cellComm1CommitteeVote'):
+                _house_status.vote.append(_house_vote)
+            _bill.committee_name = _house_status.committee_name
+        _bill.committee = _house_committee
+        __committee = next((_ for _ in _committees if _.__hash__() == _house_committee.__hash__()), None)
+        _committees.append(_house_committee)
 
     if _senate_committee_exists := _get_cell_content('cellComm2Committee'):
-        _check_senate_committee_ = CommitteeDetails(name=_senate_committee_exists, chamber='Senate')
-        if _check_senate_committee_.__hash__() in _committees:
-            _senate_committee = _committees[_check_senate_committee_.__hash__()]
+        _check_senate_committee_ = CommitteeDetails(
+            name=_senate_committee_exists,
+            chamber='Senate',
+            bill_list_id=_bill_list_id)
+        if next((_check_senate_committee_.__hash__() for _ in _committees), None) is not None:
+            _senate_committee = next((_check_senate_committee_.__hash__() for _ in _committees))
         else:
             _senate_committee = _check_senate_committee_
 
-        _senate_status = CommitteeBillStatus(
-            committee_name=_senate_committee.name,
-            committee_bill_num=_bill.bill_number,
-            status=_get_cell_content('cellComm2CommitteeStatus'),
-            vote=_parse_committee_vote('cellComm2CommitteeVote')
-        )
-        _bill.senate_committee = _senate_committee
-        _bill.senate_committee_status = _senate_status
-
-    if _house_committee_exists:
-        _house_committee.committee_bills.append(_bill)
-        _committees[_house_committee.__hash__()] = _house_committee
-    if _senate_committee_exists:
         _senate_committee.committee_bills.append(_bill)
-        _committees[_senate_committee.__hash__()] = _senate_committee
-    return _bill,
 
-def extract_action_history(bill: BillDetail, _driver) -> BillDetail:
+        if _senate_status := _get_cell_content('cellComm2CommitteeStatus'):
+            _senate_status = CommitteeBillStatus(
+                committee_name=_senate_committee.name,
+                committee_bill_num=_bill.bill_number,
+                status=_senate_status,
+            )
+            if _senate_vote := _parse_committee_vote('cellComm2CommitteeVote'):
+                _senate_status.vote.append(_senate_vote)
+            _bill.committee_name = _senate_status.committee_name
+        _bill.committee = _senate_committee
+        __committee = next((x for x in _committees if x.__hash__() == _senate_committee.__hash__()), None)
+        __committee.append(_senate_committee)
+
+    # if _house_committee_exists:
+    #     _house_committee.committee_bills.append(_bill)
+    #     __committee = next((x for x in _committees if x.name == _house_committee_exists), None)
+    #     _committees[_house_committee.__hash__()] = _house_committee
+    # if _senate_committee_exists:
+    #     _senate_committee.committee_bills.append(_bill)
+    #     _committees[_senate_committee.__hash__()] = _senate_committee
+    return _bill
+
+def extract_action_history(_bill: BillDetail, _driver) -> BillDetail | None:
     """Extract bill action history.
 
-    :param bill: The BillDetail object to update.
-    :type bill: BillDetail
+    :param _bill: The BillDetail object to update.
+    :type _bill: BillDetail
     :param _driver: The Selenium WebDriver instance.
     :type _driver: WebDriver
     :return: The updated BillDetail object with action history.
@@ -182,14 +226,14 @@ def extract_action_history(bill: BillDetail, _driver) -> BillDetail:
                 }
                 actions.append(action)
 
-        bill.action_list = actions
+        _bill.action_list = actions
     except NoSuchElementException:
-        bill.action_list = None
-    return bill
+        pass
+    return _bill
 
 
 
-def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
+def create_bill_stages(bill: BillDetail,  _driver, _wait) -> BillDetail:
     """Create bill stages and extract related documents.
 
     :param bill: The BillDetail object to update.
@@ -240,7 +284,7 @@ def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
             if len(cells) < 6:
                 continue
             __stage_name = cells[0].text.strip()
-            _stage_dict[__stage_name] = 
+            # _stage_dict[__stage_name] = 
             _stage_obj = BillStage(version=__stage_name, bill_num=bill.bill_number)
 
             _stage_obj.bill = DocumentVersionLink(
@@ -249,33 +293,33 @@ def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
                     bill_stage_id=_stage_obj.bill_stage_id,
                     **get_links_from_cell(cells[1])) if get_links_from_cell(cells[1]) else None
             
-            _stage_obj.fiscal_note = DocumentVersionLink(
+            _stage_obj.fiscal_note.append(DocumentVersionLink(
                 document_type=DocumentType.FISCAL_NOTE,
                 bill_number=bill.bill_number,
                 bill_stage_id=_stage_obj.bill_stage_id,
-                **get_links_from_cell(cells[2])) if get_links_from_cell(cells[2]) else None
+                **get_links_from_cell(cells[2])) if get_links_from_cell(cells[2]) else None)
             
-            _stage_obj.analysis = DocumentVersionLink(
+            _stage_obj.analysis.append(DocumentVersionLink(
                 document_type=DocumentType.ANALYSIS,
                 bill_number=bill.bill_number,
                 bill_stage_id=_stage_obj.bill_stage_id,
-                **get_links_from_cell(cells[3])) if get_links_from_cell(cells[3]) else None
+                **get_links_from_cell(cells[3])) if get_links_from_cell(cells[3]) else None)
             
-            _stage_obj.witness_list = DocumentVersionLink(
+            _stage_obj.witness_list.append(DocumentVersionLink(
                 document_type=DocumentType.WITNESS_LIST,
                 bill_number=bill.bill_number,
                 bill_stage_id=_stage_obj.bill_stage_id,
-                **get_links_from_cell(cells[4])) if get_links_from_cell(cells[4]) else None
+                **get_links_from_cell(cells[4])) if get_links_from_cell(cells[4]) else None)
             
-            _stage_obj.committee_summary = DocumentVersionLink(
+            _stage_obj.committee_summary.append(DocumentVersionLink(
                 document_type=DocumentType.COMMITTEE_SUMMARY,
                 bill_number=bill.bill_number,
                 bill_stage_id=_stage_obj.bill_stage_id,
-                **get_links_from_cell(cells[5])) if get_links_from_cell(cells[5]) else None
+                **get_links_from_cell(cells[5])) if get_links_from_cell(cells[5]) else None)
             _stage_dict[__stage_name] = _stage_obj
             _stage_dict.pop('Additional Documents:', None)
 
-            bill.stages.update(_stage_dict)
+            bill.stages.append(_stage_obj)
         return bill
 
     def get_additional_documents() -> None | BillDetail:
@@ -299,12 +343,14 @@ def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
                         'txt': link.get_attribute('href')
                     }
 
-            bill.additional_documents = {
-                k: DocumentVersionLink(
+            bill.additional_documents = [
+                DocumentVersionLink(
                     bill_number=bill.bill_number, 
                     document_type=DocumentType.ADDITIONAL_DOCUMENT, 
-                    **v) for k, v in docs.items() if v}
-            return
+                    **v
+                ) for k, v in docs.items() if v
+            ]
+            return bill
         except NoSuchElementException:
             return None
 
@@ -336,11 +382,11 @@ def create_bill_stages(bill: BillDetail, _driver, _wait) -> BillDetail:
                                 released_by=impact_link_type.text
                             )
                         )
-                    return
+                    return bill
         except NoSuchElementException:
-            return
+            return bill
 
-    def get_links_from_cell(cell) -> DocumentVersionLink:
+    def get_links_from_cell(cell) -> DocumentVersionLink | None:
         """Extract all links from a table cell with their types.
 
         :param cell: The table cell element.
