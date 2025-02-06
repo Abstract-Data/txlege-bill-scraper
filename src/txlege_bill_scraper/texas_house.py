@@ -1,176 +1,175 @@
-import requests
-from bs4 import BeautifulSoup
-from dataclasses import dataclass, field
-from typing import Final, Dict
+from typing import Dict
 import tomli
 from pathlib import Path
 
-with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
-    urls: Dict = tomli.load(config)
+from selenium.webdriver.common.by import By
+
+# from legislator import LegislatorBase
+from protocols import ChamberTuple, BrowserDriver, BrowserWait
+from models.bill_list import BillList
 
 
+# with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
+#     urls: Dict = tomli.load(config)
+#
+# TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
+# TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
+#
 LEGISLATIVE_SESSION: str = "87R"
-BILL_TYPE: str = "HB" or "SB"
-BILL_NUMBER: int = 1
-TLO_URL: Final = urls.get("MAIN-TLO-URL")
-TLO_MEMBER_BILL_LIST_URL: Final = TLO_URL + urls["MEMBER-URLS"]["BILL-LIST"]
-TLO_CHAMBER_LIST: Final = TLO_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
+#
+# MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
+#
+# def get_link(value: str, _driver: BrowserDriver, by: By = By.LINK_TEXT) -> str:
+#     return _driver.find_element(by, value).get_attribute('href')
 
 
-@dataclass
-class TxLegeLoader:
-    chamber: str
-    lege_session: str = field(default=LEGISLATIVE_SESSION)
-    __chamber_list_url = TLO_CHAMBER_LIST
-
-    def __post_init__(self):
-        self.page = requests.get(self.URL).text
-        self.members: list = self.get_legislators()
-
-    def __repr__(self):
-        return f"Texas {self.chamber} Members for {self.lege_session.upper()} Legislative Session"
-
-    @property
-    def URL(self):
-        match self.chamber.title():
-            case "House":
-                _chamber = "H"
-            case "Senate":
-                _chamber = "S"
-            case _:
-                raise ValueError("Chamber must be 'House' or 'Senate'")
-
-        return self.__chamber_list_url.format(_chamber)
-
-    def get_legislators(self) -> list:
-        _soup = BeautifulSoup(self.page, "html.parser")
-        _tables = _soup.find_all("table", id="dataListMembers")
-        _members = {}
-        for table in _tables:
-            rows = table.find_all("tr")
-            for row in rows:
-                cells = row.find_all("td")
-                for cell in cells:
-                    if cell.find("a"):
-                        if self.chamber == "house":
-                            _prefix = "Representative"
-                        else:
-                            _prefix = "Senator"
-                        _member = LegislativeMember(
-                            prefix=_prefix,
-                            last_name=cell.find("a").text.strip(),
-                            tlo_id=cell.find("a")["href"].split("=")[-1],
-                            session_num=self.lege_session,
-                        )
-                        _members.update(
-                            {f"{_member.prefix} {_member.last_name}": _member}
-                        )
-        return _members
+# class TxLegeLoader(NonDBModelBase):
+#     chamber: ChamberTuple
+#     lege_session: str = PydanticField(default=LEGISLATIVE_SESSION)
+#     url: HttpUrl = PydanticField(default=TLO_CHAMBER_LIST)
+#     page: Any = PydanticField(init=False)
+#     members: list = PydanticField(init=False)
+#
+#     def __repr__(self):
+#         return f"Texas {self.chamber} Members for {self.lege_session.upper()} Legislative Session"
+#
+#     @autoparams()
+#     def get_legislators(self, _driver: BrowserDriver) -> Self:
+#         _driver.get("https://capitol.texas.gov/Home.aspx")
+#         wait = WebDriverWait(_driver, 10)
+#         wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "House"))).click()
+#         wait.until(EC.element_to_be_clickable((By.LINK_TEXT, "House Members"))).click()
+#         wait.until(EC.presence_of_element_located((By.ID, "content"))).click()
+#         member_list = _driver.find_element(By.ID, "content")
+#         links = member_list.find_elements(By.TAG_NAME, "a")
+#         member_links = iter(x.get_attribute("href") for x in links)
+#         _member_gen = [LegislatorBase(id=x.split('=')[-1], member_url=x) for x in member_links]
+#         self.members = [x.fetch_member_details().fetch_legislation_details(_driver) for x in _member_gen]
+#         return self
 
 
-@dataclass
-class LegislativeMember:
-    prefix: str
-    last_name: str
-    tlo_id: str
-    session_num: str
+# class LegislativeMember(DBModelBase):
+#     prefix: str
+#     last_name: str
+#     tlo_id: str
+#     legislation: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+#     page_text: Any = field(init=False)
+#     member_url: HttpUrl = None
+#
+#     def __repr__(self):
+#         return f"TLO Desc for: {self.prefix} {self.last_name}"
+#
+#     def __post_init__(self):
+#         _session_num = next(iter(self.legislation))
+#         self.__bill_url = TLO_MEMBER_BILL_LIST_URL.format(
+#             _session_num, self.tlo_id
+#         )
+#         self.legislation[_session_num] = self.fetch_legislation(self.__bill_url)
+#
+#     def fetch_legislation(self, __url=None) -> Dict[str, Dict[str, Any]]:
+#         _page = requests.get(__url)
+#         self.page_text = _page.text
+#         self.member_url = HttpUrl(_page.url)
+#         _soup = BeautifulSoup(_page.content, "html.parser")
+#         _tables = _soup.find_all("table")
+#         bills = {}
+#         for table in _tables:
+#             bill_details = {}
+#             _sections = [x for x in table.find_all("tr")]
+#             _bill_no = _sections[0].find_all("td")[0].text
+#             if len(_sections) >= 3:
+#                 bill_details.update(
+#                     {
+#                         _sections[0]
+#                         .find_all("td")[1]
+#                         .text.replace(":", ""): [
+#                             x.strip()
+#                             for x in _sections[0].find_all("td")[2].text.split("|")
+#                         ]
+#                     }
+#                 )
+#                 bill_details.update(
+#                     {
+#                         _sections[1]
+#                         .find_all("td")[1]
+#                         .text.replace(":", ""): [
+#                             x.strip()
+#                             for x in _sections[1].find_all("td")[2].text.split("|")
+#                         ]
+#                     }
+#                 )
+#                 bill_details.update(
+#                     {
+#                         _sections[2]
+#                         .find_all("td")[1]
+#                         .text.replace(":", "")
+#                         .strip(): _sections[2]
+#                         .find_all("td")[2]
+#                         .text
+#                     }
+#                 )
+#                 if len(_sections) == 4:
+#                     bill_details.update(
+#                         {
+#                             _sections[3]
+#                             .find_all("td")[1]
+#                             .text.replace(":", ""): _sections[3]
+#                             .find_all("td")[2]
+#                             .text
+#                         }
+#                     )
+#             bills.update({_bill_no: bill_details})
+#         return bills
+#
+#     def fiscal_notes(self):
+#         # TODO: Build reader to pull fiscal notes from TLO for each bill number.
+#         if self.legislation:
+#             fiscal_notes = {}
+#             for bill, details in self.legislation.items():
+#                 if details.get("Fiscal Note"):
+#                     fiscal_notes.update({bill: details.get("Fiscal Note")})
+#             return fiscal_notes
+#
+#     def get_bill(self, chamber, number):
+#         return self.legislation.get(f"{chamber.upper()} {number}")
 
-    def __repr__(self):
-        return f"TLO Desc for: {self.prefix} {self.last_name}"
 
-    def __post_init__(self):
-        self.__bill_url = TLO_MEMBER_BILL_LIST_URL.format(
-            self.session_num, self.tlo_id
-        )
-        self.legislation = self.fetch_legislation(self.__bill_url)
-
-    def fetch_legislation(self, __url=None):
-        _page = requests.get(__url)
-        _soup = BeautifulSoup(_page.content, "html.parser")
-        _tables = _soup.find_all("table")
-        bills = {}
-        for table in _tables:
-            bill_details = {}
-            _sections = [x for x in table.find_all("tr")]
-            _bill_no = _sections[0].find_all("td")[0].text
-            if len(_sections) >= 3:
-                bill_details.update(
-                    {
-                        _sections[0]
-                        .find_all("td")[1]
-                        .text.replace(":", ""): [
-                            x.strip()
-                            for x in _sections[0].find_all("td")[2].text.split("|")
-                        ]
-                    }
-                )
-                bill_details.update(
-                    {
-                        _sections[1]
-                        .find_all("td")[1]
-                        .text.replace(":", ""): [
-                            x.strip()
-                            for x in _sections[1].find_all("td")[2].text.split("|")
-                        ]
-                    }
-                )
-                bill_details.update(
-                    {
-                        _sections[2]
-                        .find_all("td")[1]
-                        .text.replace(":", "")
-                        .strip(): _sections[2]
-                        .find_all("td")[2]
-                        .text
-                    }
-                )
-                if len(_sections) == 4:
-                    bill_details.update(
-                        {
-                            _sections[3]
-                            .find_all("td")[1]
-                            .text.replace(":", ""): _sections[3]
-                            .find_all("td")[2]
-                            .text
-                        }
-                    )
-            bills.update({_bill_no: bill_details})
-        return bills
-
-    def fiscal_notes(self):
-        # TODO: Build reader to pull fiscal notes from TLO for each bill number.
-        if self.legislation:
-            fiscal_notes = {}
-            for bill, details in self.legislation.items():
-                if details.get("Fiscal Note"):
-                    fiscal_notes.update({bill: details.get("Fiscal Note")})
-            return fiscal_notes
-
-    def get_bill(self, chamber, number):
-        return self.legislation.get(f"{chamber.upper()} {number}")
+# @dataclass
+# class BillDetails:
+#     chamber: str
+#     number: int
+#     _session: str = LEGISLATIVE_SESSION
+#
+#     def __post_init__(self):
+#         self.last_action = None
+#         self.caption_version = None
+#         self.caption_text = None
+#         self.authors = None
+#         self.coauthors = None
+#         self.sponsors = None
+#         self.subjects = None
+#         self.companion = None
+#         self.house_committee = None
+#         self.house_committee_details = {self.house_committee: None}
+#         self.house_committee_details['status'] = None
+#         self.house_committee_details['votes'] = None
+#         self.senate_committee = None
+#         self.senate_committee_details = {self.senate_committee: None}
+#         self.senate_committee_details['status'] = None
+#         self.senate_committee_details['votes'] = None
+#         self.actions = None
 
 
-@dataclass
-class BillDetails:
-    chamber: str
-    number: int
-    _session: str = LEGISLATIVE_SESSION
+# test = TxLegeLoader(Chamber.HOUSE)
+# test.get_legislators(driver)
+HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
+house_bills = BillList(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
+house_bills.create_bill_list()
+house_bills.create_bill_details()
 
-    def __post_init__(self):
-        self.last_action = None
-        self.caption_version = None
-        self.caption_text = None
-        self.authors = None
-        self.coauthors = None
-        self.sponsors = None
-        self.subjects = None
-        self.companion = None
-        self.house_committee = None
-        self.house_committee_details = {self.house_committee: None}
-        self.house_committee_details['status'] = None
-        self.house_committee_details['votes'] = None
-        self.senate_committee = None
-        self.senate_committee_details = {self.senate_committee: None}
-        self.senate_committee_details['status'] = None
-        self.senate_committee_details['votes'] = None
-        self.actions = None
+# models = [x.model_dump() for x in house_bills.bills.values()]
+# TODO: Deal with BillDetails references in Bill Interface Module to avoid circular imports.
+# house_bills.generate_bills()
+
+# hb9 = BillDetail(bill_number='HB9', bill_url="https://capitol.texas.gov/BillLookup/History.aspx?LegSess=87R&Bill=HB9")
+# create_bill_stages(bill=hb9, _driver=BrowserDriver, _wait=BrowserWait)

@@ -1,4 +1,6 @@
 MAIN-TLO-URL = "https://capitol.texas.gov/"
+BILL-TEXT-BASE = "tlodocs/{lege_session}/billtext/html/{chamber}{bill_num}"
+FISCAL-NOTE-BASE = "tlodocs/{lege_session}/fiscalnotes/html/{chamber}{bill_num}"
 
 [CHAMBER-URLS]
 MEMBER-LIST = "Members/Members.aspx?Chamber={}"
@@ -7,12 +9,12 @@ MEMBER-LIST = "Members/Members.aspx?Chamber={}"
 BILL-LIST = "reports/report.aspx?LegSess={}&ID=author&Code={}"
 BILL-LOOKUP = "BillLookup/History.aspx?LegSess={}&Bill={}"
 
-[BILL-DETAIL-URLS]  # These URLS are used to get the bill information. 3 vars are used: Legislative Session, Chamber, and Bill Number
-    BillText.Introduced = "tlodocs/{}/billtext/html/{}{}I.htm"
-    BillText.Engrossed = "tlodocs/{}/billtext/html/{}{}E.htm"
-    BillText.HouseReport = "tlodocs/{}/billtext/html/{}{}H.htm"
-    BillText.SenateReport = "tlodocs/{}/billtext/html/{}{}S.htm"
-    BillText.Enrolled = "tlodocs/{}/billtext/html/{}{}F.htm"
-    FiscalNote.Introduced = "tlodocs/{}/fiscalnotes/html/{}{}I.htm"
-    FiscalNote.HouseReport =  "tlodocs/{}/fiscalnotes/html/{}{}H.htm"
-    FiscalNote.Engrossed = "tlodocs/{}/fiscalnotes/html/{}{}E.htm"
+[BILL-DETAIL-URLS]  # These suffixes go after the BILL-TEXT-BASE and FISCAL-NOTE-BASE
+    BillText.Introduced = "I.htm"
+    BillText.Engrossed = "E.htm"
+    BillText.HouseReport = "H.htm"
+    BillText.SenateReport = "S.htm"
+    BillText.Enrolled = "F.htm"
+    FiscalNote.Introduced = "I.htm"
+    FiscalNote.HouseReport =  "H.htm"
+    FiscalNote.Engrossed = "E.htm"

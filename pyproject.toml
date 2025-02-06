@@ -10,8 +10,20 @@ requires-python = ">=3.12.8"
 dependencies = [
     "beautifulsoup4>=4.12.3",
     "fastapi>=0.115.7",
+    "icecream>=2.1.4",
+    "inject>=5.2.1",
+    "ipython>=8.31.0",
+    "logfire[system-metrics]>=3.3.0",
+    "pandas>=2.2.3",
     "pydantic>=2.10.5",
+    "requests>=2.32.3",
+    "scrapy>=2.12.0",
+    "selenium>=4.28.0",
+    "setuptools>=75.8.0",
     "sqlmodel>=0.0.22",
+    "tomli>=2.2.1",
+    "undetected-chromedriver>=3.5.5",
+    "web-scrape-utils",
 ]
 
 [project.scripts]
@@ -20,3 +32,12 @@ txlege-bill-scraper = "txlege_bill_scraper:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/txlege_bill_scraper"]
+
+[tool.logfire]
+pydantic_plugin_record = "failure"
+
+[tool.uv.sources]
+web-scrape-utils = { git = "https://github.com/jreakin/jre-web-scrape-utils.git", branch = "jan25-web-scrape" }
