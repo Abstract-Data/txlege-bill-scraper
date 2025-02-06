@@ -5,8 +5,8 @@ from pathlib import Path
 from selenium.webdriver.common.by import By
 
 # from legislator import LegislatorBase
-from protocols import ChamberTuple, BrowserDriver, BrowserWait
-from models.bill_list import BillList
+from protocols import ChamberTuple, BrowserDriver, BrowserWait, HOUSE
+from interfaces import SessionInterface
 
 
 # with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
@@ -15,7 +15,7 @@ from models.bill_list import BillList
 # TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
 # TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
 #
-LEGISLATIVE_SESSION: str = "87R"
+LEGISLATIVE_SESSION: str = "89R"
 #
 # MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
 #
@@ -162,10 +162,11 @@ LEGISLATIVE_SESSION: str = "87R"
 
 # test = TxLegeLoader(Chamber.HOUSE)
 # test.get_legislators(driver)
-HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
-house_bills = BillList(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
-house_bills.create_bill_list()
-house_bills.create_bill_details()
+house_bills = SessionInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
+house_bills.build_bill_list()
+house_bills.build_member_list()
+# house_bills.build_committee_list()
+# house_bills.create_bill_details()
 
 # models = [x.model_dump() for x in house_bills.bills.values()]
 # TODO: Deal with BillDetails references in Bill Interface Module to avoid circular imports.

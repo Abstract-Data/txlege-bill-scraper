@@ -5,17 +5,18 @@ from src.txlege_bill_scraper.interfaces.bill_list import BillListInterface
 
 logfire_context = LogFireLogger.logfire_context
 
-class BillList(SQLModel, table=True):
+#TODO: Rework this so that it's nested under the interface and use super() to call the interface methods
+class BillList(SQLModel):
     bill_list_id: Optional[str] = SQLModelField(primary_key=True)
     chamber: "ChamberTuple" = SQLModelField(sa_type=JSON)
     legislative_session: str = SQLModelField()
     committees: list["CommitteeDetails"] = Relationship(back_populates="bill_list")
-    bills: list["BillDetail"] = Relationship(back_populates="bill_list")
+    bills: dict[str, dict[str, str]] = SQLModelField(default_factory=dict)
 
     def __init__(self, **data):
         super().__init__(**data)
         self.bill_list_id = self._generate_id()
-    
+
     def __hash__(self):
         return hash(self.bill_list_id)
 

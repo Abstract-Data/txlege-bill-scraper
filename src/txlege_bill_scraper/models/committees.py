@@ -1,6 +1,6 @@
 from sqlmodel import Field as SQLModelField, Relationship, JSON
-from ..bases import DBModelBase
-from ..protocols import ChamberTuple
+from src.txlege_bill_scraper.bases import DBModelBase
+from src.txlege_bill_scraper.protocols import ChamberTuple
 
 
 class CommitteeDetails(DBModelBase, table=True):

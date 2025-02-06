@@ -16,3 +16,6 @@ class ChamberTuple(NamedTuple):
     full: str
     member_pfx: str
     bill_pfx: str
+
+HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")
+SENATE = ChamberTuple(pfx="S", full="Senate", member_pfx="Sen", bill_pfx="SB")
