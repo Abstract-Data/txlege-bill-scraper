@@ -55,7 +55,7 @@ class InterfaceBase(abc.ABC):
     committees: Dict[str, Dict] = field(default_factory=dict)
     members: list[Dict] = field(default_factory=list)
     _base_url: ClassVar[str] = CONFIG['TLO-BASE-URL']
-
+    _tlo_session_dropdown_value: Optional[str] = None
     def __init__(self):
         logfire.info(f"InterfaceBase initialized with {self.chamber} and {self.legislative_session}")
 
@@ -69,14 +69,19 @@ class InterfaceBase(abc.ABC):
     def navigate_to_page(cls, *args, **kwargs) -> None:
         ...
 
-
+    @classmethod
     @LogFireLogger.logfire_method_decorator("InterfaceBase._select_legislative_session")
-    def _select_legislative_session(self) -> None:
-        with self.driver_and_wait() as (D_, W_):
-            D_.get(self._base_url)
-            W_.until(EC.element_to_be_clickable((By.ID, "cboLegSess")))
+    def select_legislative_session(cls, identifier: Optional[str] = None) -> str:
+        identifier = "cboLegSess" if not identifier else identifier
+        return cls._legistative_session_selector(_field_id=identifier)
+
+    @classmethod
+    def _legistative_session_selector(cls, _field_id: str) -> [str, str]:
+
+        with cls.driver_and_wait() as (D_, W_):
+            W_.until(EC.element_to_be_clickable((By.ID, _field_id)))
             # _wait.until(EC.element_to_be_clickable((By.ID, "ddlLegislature")))
-            _session_element = D_.find_element(By.ID, "cboLegSess")
+            _session_element = D_.find_element(By.ID, _field_id)
             _session_select = Select(_session_element)
             _session_options = _session_select.options
             remove_parenthesis = str.maketrans('', '', "()")
@@ -85,21 +90,23 @@ class InterfaceBase(abc.ABC):
                     x for x in _session_options
                     if (
                     x.text.translate(remove_parenthesis)
-                    .startswith(str(self.legislative_session))
-                     if type(self.legislative_session)
+                    .startswith(str(cls.legislative_session))
+                     if type(cls.legislative_session)
                         is not int
-                     else str(self.legislative_session))
+                     else str(cls.legislative_session))
                 ),
                 None
             )
+            _selection_text = _session_choice.text
+            _selection = (
+                    _session_choice.text
+                    .translate(remove_parenthesis)
+                    .split('-')[0]
+                    .strip()
+                )
             _session_select.select_by_visible_text(_session_choice.text)
-            self.legislative_session = (
-                _session_choice.text
-                .replace('(', '')
-                .replace(')', '')
-                .split('-')[0]
-                .strip()
-            )
+            D_.implicitly_wait(5)
+            return _selection, _selection_text
 
     @staticmethod
     def _get_text_by_label(label, element, *args, **kwargs) -> Optional[str]:

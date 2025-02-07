@@ -15,7 +15,7 @@ from interfaces import SessionInterface
 # TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
 # TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
 #
-LEGISLATIVE_SESSION: str = "89R"
+LEGISLATIVE_SESSION: str = "88"
 #
 # MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
 #
@@ -163,9 +163,9 @@ LEGISLATIVE_SESSION: str = "89R"
 # test = TxLegeLoader(Chamber.HOUSE)
 # test.get_legislators(driver)
 house_bills = SessionInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
-house_bills.build_bill_list()
+# house_bills.build_bill_list()
 house_bills.build_member_list()
-house_bills.build_committee_list()
+# house_bills.build_committee_list()
 # house_bills.create_bill_details()
 
 # models = [x.model_dump() for x in house_bills.bills.values()]

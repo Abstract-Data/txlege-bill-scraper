@@ -21,8 +21,6 @@ class CommitteeInterface(InterfaceBase):
     @LogFireLogger.logfire_method_decorator("CommitteeInterface._navigate_to_committee_page")
     def navigate_to_page(cls, *args, **kwargs):
         with super().driver_and_wait() as (D_, W_):
-            D_.get(cls._base_url)
-            W_.until(EC.element_to_be_clickable((By.LINK_TEXT, f"{cls.chamber.full}"))).click()
             W_.until(EC.element_to_be_clickable((By.LINK_TEXT, f"Committee Membership")))
             D_.find_element(By.LINK_TEXT, "Committee Membership").click()
 
@@ -57,12 +55,13 @@ class CommitteeInterface(InterfaceBase):
                     if len(key) == 2:
                         committee_info[key[0].strip()] = key[1].strip()
 
+            try:
+                members_table = content_div.find_elements(By.TAG_NAME, "table")[1]  # Second table for members
+            except IndexError:
+                return committee_info
+
             # Capture member information from the second table
             members_info = []
-            members_table = content_div.find_elements(By.TAG_NAME, "table")  # Second table for members
-            if not members_table:
-                return committee_info
-            members_table = members_table[1]
             member_rows = members_table.find_elements(By.TAG_NAME, "tr")[1:]  # Skip header row
 
             for member_row in member_rows:

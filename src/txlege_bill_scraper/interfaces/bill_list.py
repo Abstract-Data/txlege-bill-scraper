@@ -23,9 +23,7 @@ class BillListInterface(InterfaceBase):
         _chamber = cls.chamber
         _lege_session_num = cls.legislative_session
         with super().driver_and_wait() as (D_, W_):
-            D_.get(cls._base_url)
             FILED_BILL_REF = f"Filed {_chamber.full} Bills"
-            W_.until(EC.element_to_be_clickable((By.LINK_TEXT, f"{_chamber.full}"))).click()
             W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
 
             filed_house_bills = D_.find_element(By.LINK_TEXT, FILED_BILL_REF).get_attribute("href")
