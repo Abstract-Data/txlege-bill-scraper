@@ -15,47 +15,34 @@ from src.txlege_bill_scraper.bases import InterfaceBase, BrowserDriver, BrowserW
 from src.txlege_bill_scraper.protocols import ChamberTuple, HOUSE
 from src.txlege_bill_scraper.build_logger import LogFireLogger
 
-
-logfire_context = LogFireLogger.logfire_context
-
 class CommitteeInterface(InterfaceBase):
 
     @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _navigate_to_committee_page(
-            cls,
-            _driver: BrowserDriver,
-            _wait: BrowserWait):
-
-        with logfire_context(f"CommitteeInterface._navigate_to_committee_page({cls.chamber.full})") as ctx:
-            ctx.set_attribute("chamber", cls.chamber.full)
-            ctx.set_attribute("used_url", "https://capitol.texas.gov/Home.aspx")
-
-            _driver.get("https://capitol.texas.gov/Home.aspx")
-            _wait.until(EC.element_to_be_clickable((By.LINK_TEXT, f"{cls.chamber.full}"))).click()
-            _wait.until(EC.element_to_be_clickable((By.LINK_TEXT, f"Committee Membership")))
-            _driver.find_element(By.LINK_TEXT, "Committee Membership").click()
+    @LogFireLogger.logfire_method_decorator("CommitteeInterface._navigate_to_committee_page")
+    def navigate_to_page(cls, *args, **kwargs):
+        with super().driver_and_wait() as (D_, W_):
+            D_.get(cls._base_url)
+            W_.until(EC.element_to_be_clickable((By.LINK_TEXT, f"{cls.chamber.full}"))).click()
+            W_.until(EC.element_to_be_clickable((By.LINK_TEXT, f"Committee Membership")))
+            D_.find_element(By.LINK_TEXT, "Committee Membership").click()
 
     @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _get_committee_list(cls, _driver: BrowserDriver, _wait: BrowserWait) -> List[Tuple[str, str]]:
-        try:
-            _wait.until(EC.element_to_be_clickable((By.ID, "CmteList")))
-        except NoSuchElementException:
-            raise Exception("No committee list found")
+    def _get_committee_list(cls) -> List[Tuple[str, str]]:
+        with super().driver_and_wait() as (D_, W_):
+            try:
+                W_.until(EC.element_to_be_clickable((By.ID, "CmteList")))
+            except NoSuchElementException:
+                raise Exception("No committee list found")
 
-        _list_of_committees = _driver.find_elements(By.ID, "CmteList")
+            _list_of_committees = D_.find_elements(By.ID, "CmteList")
         return [(x.text, x.get_attribute("href")) for x in _list_of_committees]
 
     @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _get_committee_details(cls, committee: Tuple[str, str], _driver: BrowserDriver, _wait: BrowserWait):
-            _driver.get(committee[1])
-            content_div = _wait.until(EC.presence_of_element_located((By.ID, "content")))
+    def _get_committee_details(cls, committee: Tuple[str, str]):
+        with super().driver_and_wait() as (D_, W_):
+            D_.get(committee[1])
+            content_div = W_.until(EC.presence_of_element_located((By.ID, "content")))
             _committee_name = committee[0]
-            # _room_number = re.search(r"\((\w\d{1,3})\)$", _committee_name)
-            # if _room_number:
-            #     _room_number = _room_number.group(1)
 
             committee_info = {'committee': committee[0], 'chamber': cls.chamber.full}
             committee_table = content_div.find_element(By.TAG_NAME, "table")
@@ -72,7 +59,10 @@ class CommitteeInterface(InterfaceBase):
 
             # Capture member information from the second table
             members_info = []
-            members_table = content_div.find_elements(By.TAG_NAME, "table")[1]  # Second table for members
+            members_table = content_div.find_elements(By.TAG_NAME, "table")  # Second table for members
+            if not members_table:
+                return committee_info
+            members_table = members_table[1]
             member_rows = members_table.find_elements(By.TAG_NAME, "tr")[1:]  # Skip header row
 
             for member_row in member_rows:
@@ -95,10 +85,9 @@ class CommitteeInterface(InterfaceBase):
             return committee_info
 
     @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def create(cls, _driver: BrowserDriver, _wait: BrowserWait):
-        cls._navigate_to_committee_page()
-        cls._select_legislative_session()
+    @LogFireLogger.logfire_method_decorator("CommitteeInterface.create")
+    def create(cls):
+        cls.navigate_to_page()
         _committees = cls._get_committee_list()
         _details = list(map(lambda x: cls._get_committee_details(x), _committees))
         cls.committees = {x['committee']: x for x in _details}

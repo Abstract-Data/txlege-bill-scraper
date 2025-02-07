@@ -2,10 +2,7 @@ from typing import Optional
 from enum import Enum
 from sqlmodel import Field as SQLModelField, Relationship, JSON, SQLModel, Date, Time
 from ..bases import DBModelBase
-from ..build_logger import LogFireLogger
 from .committees import CommitteeDetails, CommitteeBillStatus, CommitteeVoteCount
-
-logfire_context = LogFireLogger.logfire_context
 
 class DocumentType(str, Enum):
     BILL = "bill"

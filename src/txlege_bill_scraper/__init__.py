@@ -1,15 +1,17 @@
+from typing import Final, Dict
 import logfire
+import tomli
 
 def scrubbing_callback(m: logfire.ScrubMatch):
     if (
         m.path == ('message', 'e')
-        and m.pattern_match.group(0) == 'session'
+        and (m.pattern_match.group(0) == 'session' or m.pattern_match.group(0) == 'legislative_session')
     ):
         return m.value
 
     if (
         m.path == ('attributes', 'e')
-        and m.pattern_match.group(0) == 'session'
+        and (m.pattern_match.group(0) == 'session' or m.pattern_match.group(0) == 'legislative_session')
     ):
         return m.value
 
@@ -20,3 +22,5 @@ logfire.instrument_system_metrics({
     'system.memory.utilization': ['available'],  
     'system.swap.utilization': ['used'],  
 })
+
+CONFIG: Final[Dict] = tomli.load(open("./tlo_urls.toml", 'rb'))

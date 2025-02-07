@@ -1,7 +1,7 @@
 from __future__ import annotations
 import abc
 from functools import partial
-from typing import Dict, Any, Generator, Optional, ClassVar
+from typing import Dict, Any, Generator, Optional, ClassVar, ContextManager, Tuple
 from contextlib import contextmanager
 import functools
 from dataclasses import dataclass, field
@@ -15,9 +15,12 @@ from pydantic import BaseModel, ConfigDict
 from sqlmodel import SQLModel
 import inject
 from inject import Binder, configure_once
+import logfire
 
 from .protocols import BrowserDriver, BrowserWait, ChamberTuple
-from .driver import BuildWebDriver
+from .driver import BuildWebDriver, DriverAndWaitContext
+from .build_logger import LogFireLogger
+from . import CONFIG
 
 # TODO: Figure out how to get dependency injection to work correctly.
 
@@ -51,38 +54,52 @@ class InterfaceBase(abc.ABC):
     bills: Dict[str, Any] = field(default_factory=dict)
     committees: Dict[str, Dict] = field(default_factory=dict)
     members: list[Dict] = field(default_factory=list)
-    _base_url: ClassVar[str] = "https://capitol.texas.gov/Home.aspx"
+    _base_url: ClassVar[str] = CONFIG['TLO-BASE-URL']
 
+    def __init__(self):
+        logfire.info(f"InterfaceBase initialized with {self.chamber} and {self.legislative_session}")
+
+    @classmethod
     @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _select_legislative_session(self, _driver: BrowserDriver, _wait: BrowserWait):
-        _driver.get(self._base_url)
-        _wait.until(EC.element_to_be_clickable((By.ID, "cboLegSess")))
-        # _wait.until(EC.element_to_be_clickable((By.ID, "ddlLegislature")))
-        _session_element = _driver.find_element(By.ID, "cboLegSess")
-        _session_select = Select(_session_element)
-        _session_options = _session_select.options
-        _session_choice = next(
-            (
-                x for x in _session_options
-                if (
-                x.text
+    def driver_and_wait(cls, _driver: BrowserDriver, _wait: BrowserWait) -> DriverAndWaitContext:
+        return BuildWebDriver.driver_and_wait(_driver, _wait)
+
+    @classmethod
+    @abc.abstractmethod
+    def navigate_to_page(cls, *args, **kwargs) -> None:
+        ...
+
+
+    @LogFireLogger.logfire_method_decorator("InterfaceBase._select_legislative_session")
+    def _select_legislative_session(self) -> None:
+        with self.driver_and_wait() as (D_, W_):
+            D_.get(self._base_url)
+            W_.until(EC.element_to_be_clickable((By.ID, "cboLegSess")))
+            # _wait.until(EC.element_to_be_clickable((By.ID, "ddlLegislature")))
+            _session_element = D_.find_element(By.ID, "cboLegSess")
+            _session_select = Select(_session_element)
+            _session_options = _session_select.options
+            remove_parenthesis = str.maketrans('', '', "()")
+            _session_choice = next(
+                (
+                    x for x in _session_options
+                    if (
+                    x.text.translate(remove_parenthesis)
+                    .startswith(str(self.legislative_session))
+                     if type(self.legislative_session)
+                        is not int
+                     else str(self.legislative_session))
+                ),
+                None
+            )
+            _session_select.select_by_visible_text(_session_choice.text)
+            self.legislative_session = (
+                _session_choice.text
                 .replace('(', '')
                 .replace(')', '')
-                .startswith(str(self.legislative_session))
-                 if type(self.legislative_session)
-                    is not int
-                 else str(self.legislative_session))
-            ),
-            None
-        )
-        _session_select.select_by_visible_text(_session_choice.text)
-        self.legislative_session = (
-            _session_choice.text
-            .replace('(', '')
-            .replace(')', '')
-            .split('-')[0]
-            .strip()
-        )
+                .split('-')[0]
+                .strip()
+            )
 
     @staticmethod
     def _get_text_by_label(label, element, *args, **kwargs) -> Optional[str]:

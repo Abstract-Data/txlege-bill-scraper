@@ -14,40 +14,30 @@ from src.txlege_bill_scraper.protocols import ChamberTuple
 # from ..factories import bills as BILL_FACTORY
 from src.txlege_bill_scraper.build_logger import LogFireLogger
 
-
-logfire_context = LogFireLogger.logfire_context
-
 class BillListInterface(InterfaceBase):
 
 
     @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _navigate_to_bill_page(
-            cls,
-            _driver: BrowserDriver,
-            _wait: BrowserWait):
+    @LogFireLogger.logfire_method_decorator("BillListInterface.navigate_to_page")
+    def navigate_to_page(cls, *args, **kwargs):
         _chamber = cls.chamber
         _lege_session_num = cls.legislative_session
-        with logfire_context(f"BillListInterface._navigate_to_bill_page({_chamber.full})") as ctx:
-            ctx.set_attribute("txlege", _lege_session_num)
-            ctx.set_attribute("chamber", _chamber.full)
-            ctx.set_attribute("used_url", "https://capitol.texas.gov/Home.aspx")
-
-            _driver.get("https://capitol.texas.gov/Home.aspx")
+        with super().driver_and_wait() as (D_, W_):
+            D_.get(cls._base_url)
             FILED_BILL_REF = f"Filed {_chamber.full} Bills"
-            _wait.until(EC.element_to_be_clickable((By.LINK_TEXT, f"{_chamber.full}"))).click()
-            _wait.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
+            W_.until(EC.element_to_be_clickable((By.LINK_TEXT, f"{_chamber.full}"))).click()
+            W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
 
-            filed_house_bills = _driver.find_element(By.LINK_TEXT, FILED_BILL_REF).get_attribute("href")
-            _driver.get(filed_house_bills)
+            filed_house_bills = D_.find_element(By.LINK_TEXT, FILED_BILL_REF).get_attribute("href")
+            D_.get(filed_house_bills)
 
-            _wait.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
+            W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
 
-            filed_house_bills = _driver.find_element(By.LINK_TEXT, FILED_BILL_REF).get_attribute("href")
+            filed_house_bills = D_.find_element(By.LINK_TEXT, FILED_BILL_REF).get_attribute("href")
             leg_sess = parse_qs(urlparse(filed_house_bills).query).get('LegSess', [''])[0]
 
-            _driver.get(filed_house_bills.replace(leg_sess, _lege_session_num))
-            _wait.until(EC.element_to_be_clickable((By.TAG_NAME, "table")))
+            D_.get(filed_house_bills.replace(leg_sess, _lege_session_num))
+            W_.until(EC.element_to_be_clickable((By.TAG_NAME, "table")))
 
     @staticmethod
     def _extract_bill_link(table_element: WebElement) -> Tuple[str, str] | None:
@@ -62,30 +52,31 @@ class BillListInterface(InterfaceBase):
             return None
 
     @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def _get_bill_links(cls, _driver: BrowserDriver, _wait: BrowserWait) -> List[Tuple[str, str]]:
-        _wait.until(
-            lambda _driver: _driver.execute_script('return document.readyState') == 'complete'
-        )
-        bill_tables = _driver.find_elements(By.TAG_NAME, "table")
-        return [link for table in bill_tables
-                if (link := cls._extract_bill_link(table))]
+    @LogFireLogger.logfire_method_decorator("BillListInterface._get_bill_links")
+    def _get_bill_links(cls) -> List[Tuple[str, str]]:
+        with super().driver_and_wait() as (D_, W_):
+            W_.until(
+                lambda _driver: D_.execute_script('return document.readyState') == 'complete'
+            )
+            find_bill_links = D_.find_elements(By.TAG_NAME, "a")
+            bill_links = []
+            for link in find_bill_links:
+                bill_links.append(("".join(link.text.split()).strip(), link.get_attribute("href")))
+
+            return bill_links
 
     @classmethod
-    @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    def build_bill_list(
-            cls,
-            _driver: BrowserDriver,
-            _wait: BrowserWait) -> Dict[str, Dict[str, str]]:
-        with logfire_context(f"BillListInterface._build_bill_list({cls.chamber.full})"):
-            cls._navigate_to_bill_page()
-            bill_links = cls._get_bill_links()
-            bills = {}
-            for bill in bill_links:
-                bills[bill[0]] = {
-                    'bill_id': f"{cls.legislative_session}_{bill[0]}".replace(r"\w", ""),
-                    'bill_url': bill[1]
-                }
+    @LogFireLogger.logfire_method_decorator("BillListInterface._build_bill_list")
+    def build_bill_list(cls) -> Dict[str, Dict[str, str]]:
+        # with logfire_context(f"BillListInterface._build_bill_list({cls.chamber.full})"):
+        cls.navigate_to_page()
+        bill_links = cls._get_bill_links()
+        bills = {}
+        for bill in bill_links:
+            bills[bill[0]] = {
+                'bill_id': f"{cls.legislative_session}_{bill[0]}",
+                'bill_url': bill[1]
+            }
         return bills
 
     # @classmethod

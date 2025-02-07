@@ -165,7 +165,7 @@ LEGISLATIVE_SESSION: str = "89R"
 house_bills = SessionInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
 house_bills.build_bill_list()
 house_bills.build_member_list()
-# house_bills.build_committee_list()
+house_bills.build_committee_list()
 # house_bills.create_bill_details()
 
 # models = [x.model_dump() for x in house_bills.bills.values()]

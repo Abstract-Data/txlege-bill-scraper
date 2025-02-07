@@ -4,6 +4,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import logfire
+from logfire.propagate import attach_context
 import re
 
 from ..protocols import ChamberTuple
@@ -15,7 +16,7 @@ from ..models.bills import (
 )
 from ..build_logger import LogFireLogger
 
-logfire_context = LogFireLogger.logfire_context
+logfire_context = attach_context
 
 
 def _get_cell_text(cell_id: str, _driver) -> Optional[str]:
