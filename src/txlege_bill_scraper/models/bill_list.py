@@ -1,8 +1,12 @@
-from typing import Optional, ClassVar
-from sqlmodel import Field as SQLModelField, Relationship, SQLModel, JSON
-from src.txlege_bill_scraper.interfaces.bill_list import BillListInterface
+from typing import Optional
 
-#TODO: Rework this so that it's nested under the interface and use super() to call the interface methods
+from sqlmodel import JSON, Relationship, SQLModel
+from sqlmodel import Field as SQLModelField
+
+from txlege_bill_scraper.interfaces.bill_list import BillListInterface
+
+
+# TODO: Rework this so that it's nested under the interface and use super() to call the interface methods
 class BillList(SQLModel):
     bill_list_id: Optional[str] = SQLModelField(primary_key=True)
     chamber: "ChamberTuple" = SQLModelField(sa_type=JSON)
@@ -26,8 +30,8 @@ class BillList(SQLModel):
         self.bills = BillListInterface.build_bill_list(
             chamber=self.chamber,
             lege_session=self.legislative_session,
-            bill_list_id=self.bill_list_id
-            )
+            bill_list_id=self.bill_list_id,
+        )
 
     def create_bill_details(self):
         # from src.txlege_bill_scraper.navigator import BillListInterface  # Local import
@@ -35,5 +39,5 @@ class BillList(SQLModel):
             _bill_list_id=self.bill_list_id,
             _bills=self.bills,
             _chamber=self.chamber,
-            _committees=self.committees
-            )
+            _committees=self.committees,
+        )

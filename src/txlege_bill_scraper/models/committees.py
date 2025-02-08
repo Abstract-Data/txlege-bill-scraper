@@ -1,6 +1,8 @@
-from sqlmodel import Field as SQLModelField, Relationship, JSON
-from src.txlege_bill_scraper.bases import DBModelBase
-from src.txlege_bill_scraper.protocols import ChamberTuple
+from sqlmodel import JSON, Relationship
+from sqlmodel import Field as SQLModelField
+
+from txlege_bill_scraper.bases import DBModelBase
+from txlege_bill_scraper.protocols import ChamberTuple
 
 
 class CommitteeDetails(DBModelBase, table=True):
@@ -8,12 +10,10 @@ class CommitteeDetails(DBModelBase, table=True):
     chamber: ChamberTuple = SQLModelField(sa_type=JSON)
     bill_list_id: str = SQLModelField(foreign_key="billlist.bill_list_id")
     committee_bills: list["BillDetail"] = Relationship(
-        back_populates="committee",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="committee", sa_relationship_kwargs={"lazy": "selectin"}
     )
     committee_bill_statuses: list["CommitteeBillStatus"] = Relationship(
-        back_populates="committee",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        back_populates="committee", sa_relationship_kwargs={"lazy": "selectin"}
     )
     bill_list: "BillList" = Relationship(back_populates="committees")
 
@@ -23,16 +23,26 @@ class CommitteeDetails(DBModelBase, table=True):
     def __repr__(self):
         return f"{self.name} Committee for the {self.chamber} Chamber"
 
+
 class CommitteeBillStatus(DBModelBase, table=True):
     committee_bill_num: str = SQLModelField(primary_key=True)
-    committee_name: str = SQLModelField(foreign_key=f"{CommitteeDetails.__tablename__}.name")
+    committee_name: str = SQLModelField(
+        foreign_key=f"{CommitteeDetails.__tablename__}.name"
+    )
     status: str
-    vote: list["CommitteeVoteCount"] = Relationship(back_populates="committee_bill_status")
-    committee: "CommitteeDetails" = Relationship(back_populates="committee_bill_statuses")
+    vote: list["CommitteeVoteCount"] = Relationship(
+        back_populates="committee_bill_status"
+    )
+    committee: "CommitteeDetails" = Relationship(
+        back_populates="committee_bill_statuses"
+    )
+
 
 class CommitteeVoteCount(DBModelBase, table=True):
     committee_bill_vote_id: str = SQLModelField(primary_key=True)
-    committee_bill_num: str = SQLModelField(foreign_key="committeebillstatus.committee_bill_num")
+    committee_bill_num: str = SQLModelField(
+        foreign_key="committeebillstatus.committee_bill_num"
+    )
     ayes: int = 0
     nays: int = 0
     present_not_voting: int = 0

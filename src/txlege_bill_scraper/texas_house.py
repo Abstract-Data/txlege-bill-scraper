@@ -1,13 +1,7 @@
-from typing import Dict
-import tomli
-from pathlib import Path
-
-from selenium.webdriver.common.by import By
-
-# from legislator import LegislatorBase
-from protocols import ChamberTuple, BrowserDriver, BrowserWait, HOUSE
 from interfaces import SessionInterface
 
+# from legislator import LegislatorBase
+from protocols import HOUSE
 
 # with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
 #     urls: Dict = tomli.load(config)
@@ -15,7 +9,7 @@ from interfaces import SessionInterface
 # TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
 # TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
 #
-LEGISLATIVE_SESSION: str = "88"
+LEGISLATIVE_SESSION: str = "87"
 #
 # MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
 #
@@ -164,7 +158,7 @@ LEGISLATIVE_SESSION: str = "88"
 # test.get_legislators(driver)
 house_bills = SessionInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
 # house_bills.build_bill_list()
-house_bills.build_member_list()
+house_bills.build_member_list()  # This was my stopping pont on Feb 7 2025
 # house_bills.build_committee_list()
 # house_bills.create_bill_details()
 

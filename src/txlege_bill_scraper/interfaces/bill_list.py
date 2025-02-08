@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 from urllib.parse import parse_qs, urlparse
 
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.common.exceptions import NoSuchElementException
-import inject
+from selenium.webdriver.support import expected_conditions as EC
 
-from src.txlege_bill_scraper.bases import InterfaceBase, BrowserDriver, BrowserWait
-from src.txlege_bill_scraper.protocols import ChamberTuple
-# from ..factories import bills as BILL_FACTORY
-from src.txlege_bill_scraper.build_logger import LogFireLogger
+# from txlege_bill_scraper.protocols import ChamberTuple
+# from txlege_bill_scraper.factories import bills as BILL_FACTORY
+from txlege_bill_scraper.build_logger import LogFireLogger
+
+from . import InterfaceBase
+
 
 class BillListInterface(InterfaceBase):
-
-
     @classmethod
     @LogFireLogger.logfire_method_decorator("BillListInterface.navigate_to_page")
     def navigate_to_page(cls, *args, **kwargs):
@@ -26,13 +25,19 @@ class BillListInterface(InterfaceBase):
             FILED_BILL_REF = f"Filed {_chamber.full} Bills"
             W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
 
-            filed_house_bills = D_.find_element(By.LINK_TEXT, FILED_BILL_REF).get_attribute("href")
+            filed_house_bills = D_.find_element(
+                By.LINK_TEXT, FILED_BILL_REF
+            ).get_attribute("href")
             D_.get(filed_house_bills)
 
             W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
 
-            filed_house_bills = D_.find_element(By.LINK_TEXT, FILED_BILL_REF).get_attribute("href")
-            leg_sess = parse_qs(urlparse(filed_house_bills).query).get('LegSess', [''])[0]
+            filed_house_bills = D_.find_element(
+                By.LINK_TEXT, FILED_BILL_REF
+            ).get_attribute("href")
+            leg_sess = parse_qs(urlparse(filed_house_bills).query).get("LegSess", [""])[
+                0
+            ]
 
             D_.get(filed_house_bills.replace(leg_sess, _lege_session_num))
             W_.until(EC.element_to_be_clickable((By.TAG_NAME, "table")))
@@ -42,10 +47,11 @@ class BillListInterface(InterfaceBase):
         """Extract bill number and URL from table element"""
         try:
             link = table_element.find_element(
-                By.CSS_SELECTOR,
-                "tr:first-child td:first-child a"
+                By.CSS_SELECTOR, "tr:first-child td:first-child a"
             )
-            return link.text.strip() if link else None, link.get_attribute("href") if link else None
+            return link.text.strip() if link else None, link.get_attribute(
+                "href"
+            ) if link else None
         except NoSuchElementException:
             return None
 
@@ -54,12 +60,15 @@ class BillListInterface(InterfaceBase):
     def _get_bill_links(cls) -> List[Tuple[str, str]]:
         with super().driver_and_wait() as (D_, W_):
             W_.until(
-                lambda _driver: D_.execute_script('return document.readyState') == 'complete'
+                lambda _driver: D_.execute_script("return document.readyState")
+                == "complete"
             )
             find_bill_links = D_.find_elements(By.TAG_NAME, "a")
             bill_links = []
             for link in find_bill_links:
-                bill_links.append(("".join(link.text.split()).strip(), link.get_attribute("href")))
+                bill_links.append(
+                    ("".join(link.text.split()).strip(), link.get_attribute("href"))
+                )
 
             return bill_links
 
@@ -72,8 +81,8 @@ class BillListInterface(InterfaceBase):
         bills = {}
         for bill in bill_links:
             bills[bill[0]] = {
-                'bill_id': f"{cls.legislative_session}_{bill[0]}",
-                'bill_url': bill[1]
+                "bill_id": f"{cls.legislative_session}_{bill[0]}",
+                "bill_url": bill[1],
             }
         return bills
 
