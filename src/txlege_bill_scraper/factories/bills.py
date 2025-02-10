@@ -16,9 +16,6 @@ from ..models.bills import (
 )
 from ..build_logger import LogFireLogger
 
-logfire_context = attach_context
-
-
 def _get_cell_text(cell_id: str, _driver) -> Optional[str]:
     """Helper method to safely get cell text.
 
@@ -54,13 +51,7 @@ def create_bill_detail(
         bill_url=_bill_url
     )
 
-
-def extract_basic_details(
-        _bill_list_id: str,
-        _bill: BillDetail,
-        _chamber: ChamberTuple,
-        _committees: List[CommitteeDetails],
-        _driver) -> BillDetail:
+def extract_basic_details(_bill: BillDetail) -> BillDetail:
     """Extract basic bill information.
 
     :param _committees:
@@ -73,7 +64,7 @@ def extract_basic_details(
     :return: The updated BillDetail object.
     :rtype: BillDetail
     """
-
+    with super().driver_and_wait() as (D_, W_):
     def _get_cell_content(cell_id: str) -> Optional[str]:
         try:
             cell = _driver.find_element(By.ID, cell_id)

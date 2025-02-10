@@ -7,6 +7,10 @@
     "python.terminal.interactive.showStartPage": false,
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.cwd": "${workspaceFolder}/tests",
+    "python.testing.pytestPath": "${workspaceFolder}/.venv/bin/pytest",
     // Python extension settings
     "python.showStartPage": false,
     "python.showExtensionSurveyPrompt": false

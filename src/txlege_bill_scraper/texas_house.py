@@ -1,4 +1,4 @@
-from interfaces import SessionInterface
+from interfaces import SessionInterface, SessionDetails
 
 # from legislator import LegislatorBase
 from protocols import HOUSE
@@ -9,7 +9,7 @@ from protocols import HOUSE
 # TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
 # TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
 #
-LEGISLATIVE_SESSION: str = "87"
+LEGISLATIVE_SESSION: SessionDetails = SessionDetails(lege_session="87", lege_session_desc="1")
 #
 # MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
 #
@@ -157,10 +157,7 @@ LEGISLATIVE_SESSION: str = "87"
 # test = TxLegeLoader(Chamber.HOUSE)
 # test.get_legislators(driver)
 house_bills = SessionInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
-# house_bills.build_bill_list()
-house_bills.build_member_list()  # This was my stopping pont on Feb 7 2025
-# house_bills.build_committee_list()
-# house_bills.create_bill_details()
+house_bills.fetch()
 
 # models = [x.model_dump() for x in house_bills.bills.values()]
 # TODO: Deal with BillDetails references in Bill Interface Module to avoid circular imports.

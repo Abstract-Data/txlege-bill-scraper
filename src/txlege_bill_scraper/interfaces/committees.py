@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Any
 from urllib.parse import parse_qs, urlparse
+from icecream import ic
 
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
@@ -10,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 # from txlege_bill_scraper.protocols import ChamberTuple, HOUSE
 from txlege_bill_scraper.build_logger import LogFireLogger
 
-from . import InterfaceBase
+from txlege_bill_scraper.bases import InterfaceBase
 
 
 class CommitteeInterface(InterfaceBase):
@@ -22,26 +23,47 @@ class CommitteeInterface(InterfaceBase):
         with super().driver_and_wait() as (D_, W_):
             W_.until(EC.element_to_be_clickable((By.LINK_TEXT, "Committee Membership")))
             D_.find_element(By.LINK_TEXT, "Committee Membership").click()
+            W_.until(EC.element_to_be_clickable((By.ID, "content")))
+
+            # Select Appropriate Legislative Session
+            _, cls._tlo_session_dropdown_value = super().select_legislative_session(
+                identifier="ddlLegislature"
+            )
+            W_.until(EC.element_to_be_clickable((By.ID, "content")))
 
     @classmethod
-    def _get_committee_list(cls) -> List[Tuple[str, str]]:
+    @LogFireLogger.logfire_method_decorator("CommitteeInterface._get_committee_list")
+    def _get_committee_list(cls) -> Dict:
         with super().driver_and_wait() as (D_, W_):
+            ic(D_.current_url)
+            _has_committee = "Committees" in D_.current_url
+            ic(_has_committee)
             try:
-                W_.until(EC.element_to_be_clickable((By.ID, "CmteList")))
-            except NoSuchElementException:
-                raise Exception("No committee list found")
+                W_.until(EC.presence_of_element_located((By.ID, "ctl00")))
+                _committee_element = D_.find_element(By.ID, "ctl00")
+                _committee_table = _committee_element.find_elements(By.TAG_NAME, "li")
+            except Exception as e:
+                raise e
 
-            _list_of_committees = D_.find_elements(By.ID, "CmteList")
-        return [(x.text, x.get_attribute("href")) for x in _list_of_committees]
+            _list_of_committees = {}
+            for _committee in _committee_table:
+                _committee_name = _committee.find_element(By.TAG_NAME, "a").text
+                _committee_url = _committee.find_element(
+                    By.TAG_NAME, "a"
+                ).get_attribute("href")
+                _list_of_committees[_committee_name] = {
+                    "committee_chamber": cls.chamber.full,
+                    "committee_name": _committee_name,
+                    "committee_url": _committee_url,
+                }
+            return _list_of_committees
 
     @classmethod
-    def _get_committee_details(cls, committee: Tuple[str, str]):
+    def _get_committee_details(cls, committee: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         with super().driver_and_wait() as (D_, W_):
-            D_.get(committee[1])
+            D_.get(committee["committee_url"])
             content_div = W_.until(EC.presence_of_element_located((By.ID, "content")))
-            _committee_name = committee[0]
 
-            committee_info = {"committee": committee[0], "chamber": cls.chamber.full}
             committee_table = content_div.find_element(By.TAG_NAME, "table")
             rows = committee_table.find_elements(By.TAG_NAME, "tr")
             for row in rows:
@@ -50,16 +72,16 @@ class CommitteeInterface(InterfaceBase):
                     key = tuple(cells[0].text.split(":"))
                     value = tuple(cells[1].text.split(":"))
                     if len(value) == 2:
-                        committee_info[value[0].strip()] = value[1].strip()
+                        committee[value[0].strip()] = value[1].strip()
                     if len(key) == 2:
-                        committee_info[key[0].strip()] = key[1].strip()
+                        committee[key[0].strip()] = key[1].strip()
 
             try:
                 members_table = content_div.find_elements(By.TAG_NAME, "table")[
                     1
                 ]  # Second table for members
             except IndexError:
-                return committee_info
+                return committee
 
             # Capture member information from the second table
             members_info = []
@@ -87,16 +109,17 @@ class CommitteeInterface(InterfaceBase):
                             "id": parse_qs(urlparse(link).query)["LegCode"][0],
                         }
                     )
-            committee_info["members"] = members_info
-            return committee_info
+            committee["members"] = members_info
+            return committee
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("CommitteeInterface.create")
-    def create(cls):
+    @LogFireLogger.logfire_method_decorator("CommitteeInterface.fetch")
+    def fetch(cls):
         cls.navigate_to_page()
         _committees = cls._get_committee_list()
-        _details = list(map(lambda x: cls._get_committee_details(x), _committees))
-        cls.committees = {x["committee"]: x for x in _details}
+        _details = {x: cls._get_committee_details(_committees[x]) for x in _committees}
+        # cls.committees = {x["committee"]: x for x in _details}
+        return _details
 
         # committee_page = _driver.find_element(By.ID, "content")
         # cls.committees[cls.committees.index(committee)] = (committee[0], committee_page.text)

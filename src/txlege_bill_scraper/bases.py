@@ -1,7 +1,7 @@
 from __future__ import annotations
 import abc
 from functools import partial
-from typing import Dict, Any, Generator, Optional, ClassVar, ContextManager, Tuple
+from typing import Dict, Any, Generator, Optional, ClassVar, List
 from contextlib import contextmanager
 import functools
 from dataclasses import dataclass, field
@@ -17,10 +17,10 @@ import inject
 from inject import Binder, configure_once
 import logfire
 
-from .protocols import BrowserDriver, BrowserWait, ChamberTuple
-from .driver import BuildWebDriver, DriverAndWaitContext
-from .build_logger import LogFireLogger
-from . import CONFIG
+from txlege_bill_scraper.protocols import BrowserDriver, BrowserWait, ChamberTuple, SessionDetails
+from txlege_bill_scraper.driver import BuildWebDriver, DriverAndWaitContext
+from txlege_bill_scraper.build_logger import LogFireLogger
+from txlege_bill_scraper import CONFIG
 
 # TODO: Figure out how to get dependency injection to work correctly.
 
@@ -50,14 +50,18 @@ class NonDBModelBase(BaseModel):
 @dataclass
 class InterfaceBase(abc.ABC):
     chamber: ChamberTuple
-    legislative_session: str | int
+    legislative_session: SessionDetails
     bills: Dict[str, Any] = field(default_factory=dict)
     committees: Dict[str, Dict] = field(default_factory=dict)
     members: list[Dict] = field(default_factory=list)
     _base_url: ClassVar[str] = CONFIG['TLO-BASE-URL']
     _tlo_session_dropdown_value: Optional[str] = None
+
     def __init__(self):
         logfire.info(f"InterfaceBase initialized with {self.chamber} and {self.legislative_session}")
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.chamber}, {self.legislative_session})"
 
     @classmethod
     @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
@@ -85,16 +89,14 @@ class InterfaceBase(abc.ABC):
             _session_select = Select(_session_element)
             _session_options = _session_select.options
             remove_parenthesis = str.maketrans('', '', "()")
-            _session_choice = next(
-                (
-                    x for x in _session_options
-                    if (
-                    x.text.translate(remove_parenthesis)
-                    .startswith(str(cls.legislative_session))
-                     if type(cls.legislative_session)
-                        is not int
-                     else str(cls.legislative_session))
-                ),
+            _session_checker = (
+                cls.legislative_session.lege_session
+                if not _field_id == "cboLegSess"
+                else (cls.legislative_session.lege_session + cls.legislative_session.lege_session_desc)
+            )
+            _session_choice = next((
+                x for x in _session_options
+                if x.text.translate(remove_parenthesis).startswith(_session_checker)),
                 None
             )
             _selection_text = _session_choice.text
@@ -135,5 +137,9 @@ class InterfaceBase(abc.ABC):
         finally:
             pass
 
+    @classmethod
+    @abc.abstractmethod
+    def fetch(cls, *args, **kwargs) -> List[Dict[str, Any]]:
+        ...
 
 

@@ -12,10 +12,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 from txlege_bill_scraper.build_logger import LogFireLogger
 
-from . import InterfaceBase
+from txlege_bill_scraper.bases import InterfaceBase
+
 
 
 class MemberDetailInterface(InterfaceBase):
+
+
     @classmethod
     def navigate_to_page(cls, *args, **kwargs) -> Dict[str, Dict]:
         member: Dict[str, Any] | None = kwargs.get("member", None)
@@ -24,6 +27,11 @@ class MemberDetailInterface(InterfaceBase):
         with super().driver_and_wait() as (D_, W_):
             D_.get(member["url"])
             W_.until(EC.element_to_be_clickable((By.ID, "content")))
+
+    @classmethod
+    def _get_member_details(cls, member: Dict) -> Dict | None:
+        #TODO: Build ability to get committee assignments for previous session if on the page.
+        with super().driver_and_wait() as (D_, W_):
             _remove_information_pfx = f"Information for {cls.chamber.member_pfx}."
             _member_header = D_.find_element(By.ID, "usrHeader_lblPageTitle")
             _member_header_text = _member_header.text.replace(
@@ -35,11 +43,6 @@ class MemberDetailInterface(InterfaceBase):
             ).strip()
             if "first_name" in member and "last_name" in member:
                 del member["name"]
-
-            # TODO: Modify contact and bill search to try 'current session' tags else try 'past session' day tags.
-            # Will need to inspect the page to see how to differentiate between the two.
-
-            # TODO: Will need to add the ability to iterate through all additional sessions during the cycle to differentiate legislation by session.
 
             try:
                 _contact_info = D_.find_element(By.ID, "contactInfo")
@@ -73,11 +76,11 @@ class MemberDetailInterface(InterfaceBase):
                 member["amendments_authored_url"] = get_url_("Amendments Authored")
             except NoSuchElementException:
                 pass
-            member = cls.get_member_bills(member)
+            member = cls._get_member_bills(member)
             return member
 
     @classmethod
-    def get_member_bills(cls, member: Dict) -> Dict | None:
+    def _get_member_bills(cls, member: Dict) -> Dict | None:
         with super().driver_and_wait() as (D_, W_):
             _urls = {k: v for k, v in member.items() if k.endswith("_url")}
             W_ = WebDriverWait(D_, 2)
@@ -89,21 +92,31 @@ class MemberDetailInterface(InterfaceBase):
                     _bill_table = D_.find_elements(By.TAG_NAME, "table")
                     bill_type_list[_type.replace("_url", "")] = []
                     for _bill in _bill_table:
-                        _bill_url = _bill.find_element(By.TAG_NAME, "a").get_attribute("href")
+                        _bill_url = _bill.find_element(By.TAG_NAME, "a").get_attribute(
+                            "href"
+                        )
                         _session = parse_qs(urlparse(_bill_url).query)["LegSess"][0]
                         _bill_num = parse_qs(urlparse(_bill_url).query)["Bill"][0]
-                        bill_type_list[_type.replace("_url", "")].append(f"{_session}_{_bill_num}")
+                        bill_type_list[_type.replace("_url", "")].append(
+                            f"{_session}_{_bill_num}"
+                        )
                 except Exception:
                     pass
-                ic(bill_type_list)
             member.update(bill_type_list)
         return member
 
+    @classmethod
+    def fetch(cls, member: Dict) -> Dict | None:
+        cls.navigate_to_page(member=member)
+        return cls._get_member_details(member=member)
+
 
 class MemberListInterface(InterfaceBase):
+
+
     @classmethod
     @LogFireLogger.logfire_method_decorator(
-        "MemberListInterface._navigate_to_member_page"
+        "MemberListInterface._navigate_to_member_list"
     )
     def navigate_to_page(cls):
         with super().driver_and_wait() as (D_, W_):
@@ -113,6 +126,10 @@ class MemberListInterface(InterfaceBase):
                     (By.LINK_TEXT, f"{cls.chamber.full} Members")
                 )
             ).click()
+            W_.until(EC.element_to_be_clickable((By.ID, "content")))
+            _, cls._tlo_session_dropdown_value = super().select_legislative_session(
+                identifier="ddlLegislature"
+            )
 
     @classmethod
     def _get_member_list(cls) -> List[Dict]:
@@ -123,9 +140,9 @@ class MemberListInterface(InterfaceBase):
                 logfire.error(stmt := f"No {cls.chamber.full} member list found")
                 raise Exception(stmt)
 
-            _, cls._tlo_session_dropdown_value = super().select_legislative_session(
-                identifier="ddlLegislature"
-            )
+            # _, cls._tlo_session_dropdown_value = super().select_legislative_session(
+            #     identifier="ddlLegislature"
+            # )
 
             logfire.debug(f"MemberListInterface._get_member_list(): {cls.chamber.full}")
             _members_table = D_.find_element(By.ID, "dataListMembers")
@@ -143,14 +160,14 @@ class MemberListInterface(InterfaceBase):
             return member_list
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("MemberListInterface.fetch_member_info")
-    def fetch_member_info(cls) -> List[Dict]:
-        # with logfire_context(f"MemberInterface.fetch_member_info({cls.chamber.full})"):
+    @LogFireLogger.logfire_method_decorator("MemberListInterface.fetch")
+    def fetch(cls, *args, **kwargs) -> List[Dict]:
+        logfire.info(f"Fetching {cls.chamber.full} members")
         cls.navigate_to_page()
         members = cls._get_member_list()
         MemberDetailInterface.chamber = cls.chamber
         MemberDetailInterface.legislative_session = cls.legislative_session
-        _members = [MemberDetailInterface.navigate_to_page(member=x) for x in members]
+        _members = [MemberDetailInterface.fetch(member=x) for x in members]
         return _members
 
 

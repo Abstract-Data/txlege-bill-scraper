@@ -12,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 # from txlege_bill_scraper.factories import bills as BILL_FACTORY
 from txlege_bill_scraper.build_logger import LogFireLogger
 
-from . import InterfaceBase
+from txlege_bill_scraper.bases import InterfaceBase
 
 
 class BillListInterface(InterfaceBase):
@@ -24,23 +24,28 @@ class BillListInterface(InterfaceBase):
         with super().driver_and_wait() as (D_, W_):
             FILED_BILL_REF = f"Filed {_chamber.full} Bills"
             W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
+            D_.find_element(By.LINK_TEXT, FILED_BILL_REF).click()
 
-            filed_house_bills = D_.find_element(
-                By.LINK_TEXT, FILED_BILL_REF
-            ).get_attribute("href")
-            D_.get(filed_house_bills)
-
+            # Select Appropriate Legislative Session
+            _, cls._tlo_session_dropdown_value = super().select_legislative_session()
             W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
 
             filed_house_bills = D_.find_element(
                 By.LINK_TEXT, FILED_BILL_REF
             ).get_attribute("href")
-            leg_sess = parse_qs(urlparse(filed_house_bills).query).get("LegSess", [""])[
-                0
-            ]
-
-            D_.get(filed_house_bills.replace(leg_sess, _lege_session_num))
-            W_.until(EC.element_to_be_clickable((By.TAG_NAME, "table")))
+            D_.get(filed_house_bills)
+            #
+            # W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
+            #
+            # filed_house_bills = D_.find_element(
+            #     By.LINK_TEXT, FILED_BILL_REF
+            # ).get_attribute("href")
+            # leg_sess = parse_qs(urlparse(filed_house_bills).query).get("LegSess", [""])[
+            #     0
+            # ]
+            #
+            # D_.get(filed_house_bills.replace(leg_sess, _lege_session_num))
+            # W_.until(EC.element_to_be_clickable((By.TAG_NAME, "table")))
 
     @staticmethod
     def _extract_bill_link(table_element: WebElement) -> Tuple[str, str] | None:
@@ -73,8 +78,8 @@ class BillListInterface(InterfaceBase):
             return bill_links
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("BillListInterface._build_bill_list")
-    def build_bill_list(cls) -> Dict[str, Dict[str, str]]:
+    @LogFireLogger.logfire_method_decorator("BillListInterface.fetch")
+    def fetch(cls) -> Dict[str, Dict[str, str]]:
         # with logfire_context(f"BillListInterface._build_bill_list({cls.chamber.full})"):
         cls.navigate_to_page()
         bill_links = cls._get_bill_links()
@@ -85,32 +90,3 @@ class BillListInterface(InterfaceBase):
                 "bill_url": bill[1],
             }
         return bills
-
-    # @classmethod
-    # @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
-    # def build_bill_details(cls,
-    #                         _bill_list_id: str,
-    #                         _bills: List[BILL_FACTORY.BillDetail],
-    #                         _chamber: ChamberTuple,
-    #                         _committees: Dict[str, BILL_FACTORY.CommitteeDetails],
-    #                         _driver: BrowserDriver,
-    #                         _wait: BrowserWait) -> List[BILL_FACTORY.BillDetail]:
-    #     with logfire_context("BillListInterface._build_bill_details"):
-    #         output_bills = []
-    #         for _bill in _bills:
-    #             _bill = _bills.pop()
-    #             _driver.get(_bill.bill_url)
-    #             _wait.until(EC.presence_of_element_located((By.ID, "Form1")))
-    #
-    #             # Extract bill stages
-    #             BILL_FACTORY.extract_basic_details(
-    #                 _bill_list_id=_bill_list_id,
-    #                 _bill=_bill,
-    #                 _chamber=_chamber,
-    #                 _committees=_committees,
-    #                 _driver=_driver)
-    #             BILL_FACTORY.extract_action_history(_bill=_bill, _driver=_driver)
-    #             BILL_FACTORY.create_bill_stages(_bill, _driver, _wait)
-    #             BILL_FACTORY.extract_amendments(_bill, _driver)
-    #             output_bills.append(_bill)
-    #     return output_bills
