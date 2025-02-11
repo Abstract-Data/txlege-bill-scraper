@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Generator
 import re
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
@@ -278,7 +278,7 @@ class BillDetailInterface(InterfaceBase):
 
     @classmethod
     @LogFireLogger.logfire_method_decorator("BillDetailInterface.fetch")
-    def fetch(cls, bills: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    def fetch(cls, bills: Dict[str, Dict[str, Any]]) -> Generator[Dict[str, Dict[str, Any]], None, None]:
         for num, bill in bills.items():
             bill = cls.get_basic_details(bill)
             house_committee = cls._get_committee_information("cellComm1")
@@ -287,4 +287,4 @@ class BillDetailInterface(InterfaceBase):
             bill['senate_committee'] = senate_committee
             bill['versions'] = cls.parse_bill_text_table()
             bill['amendments'] = cls.parse_amendments_table()
-        return bills
+            yield {num: bill}

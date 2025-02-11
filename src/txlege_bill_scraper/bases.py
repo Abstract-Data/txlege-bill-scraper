@@ -51,7 +51,7 @@ class NonDBModelBase(BaseModel):
 class InterfaceBase(abc.ABC):
     chamber: ChamberTuple
     legislative_session: SessionDetails
-    bills: Dict[str, Any] = field(default_factory=dict)
+    bills: Generator[Dict[str, Any], None, None] = field(default_factory=dict)
     committees: Dict[str, Dict] = field(default_factory=dict)
     members: list[Dict] = field(default_factory=list)
     _base_url: ClassVar[str] = CONFIG['TLO-BASE-URL']

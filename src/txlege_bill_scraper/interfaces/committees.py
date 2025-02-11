@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Generator
 from urllib.parse import parse_qs, urlparse
 from icecream import ic
 
@@ -114,12 +114,15 @@ class CommitteeInterface(InterfaceBase):
 
     @classmethod
     @LogFireLogger.logfire_method_decorator("CommitteeInterface.fetch")
-    def fetch(cls):
+    def fetch(cls) -> Generator[Dict[str, Dict[str, Any]], None, None]:
         cls.navigate_to_page()
         _committees = cls._get_committee_list()
-        _details = {x: cls._get_committee_details(_committees[x]) for x in _committees}
+        for committee in _committees:
+            yield {committee: cls._get_committee_details(_committees[committee])}
+        #     _committees[committee] = cls._get_committee_details(_committees[committee])
+        # _details = {x: cls._get_committee_details(_committees[x]) for x in _committees}
         # cls.committees = {x["committee"]: x for x in _details}
-        return _details
+        # return _details
 
         # committee_page = _driver.find_element(By.ID, "content")
         # cls.committees[cls.committees.index(committee)] = (committee[0], committee_page.text)

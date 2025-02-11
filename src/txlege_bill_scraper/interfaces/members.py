@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Generator
 from urllib.parse import parse_qs, urlparse
 from icecream import ic
 
@@ -126,7 +126,7 @@ class MemberListInterface(InterfaceBase):
                     (By.LINK_TEXT, f"{cls.chamber.full} Members")
                 )
             ).click()
-            W_.until(EC.element_to_be_clickable((By.ID, "content")))
+            W_.until(EC.element_to_be_clickable((By.ID, "content"))).is_displayed()
             _, cls._tlo_session_dropdown_value = super().select_legislative_session(
                 identifier="ddlLegislature"
             )
@@ -161,14 +161,14 @@ class MemberListInterface(InterfaceBase):
 
     @classmethod
     @LogFireLogger.logfire_method_decorator("MemberListInterface.fetch")
-    def fetch(cls, *args, **kwargs) -> List[Dict]:
+    def fetch(cls, *args, **kwargs) -> Generator[Dict, None, None]:
         logfire.info(f"Fetching {cls.chamber.full} members")
         cls.navigate_to_page()
         members = cls._get_member_list()
         MemberDetailInterface.chamber = cls.chamber
         MemberDetailInterface.legislative_session = cls.legislative_session
-        _members = [MemberDetailInterface.fetch(member=x) for x in members]
-        return _members
+        for member in members:
+            yield MemberDetailInterface.fetch(member=member)
 
 
 # MemberListInterface.chamber = HOUSE

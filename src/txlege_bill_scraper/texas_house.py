@@ -158,6 +158,7 @@ LEGISLATIVE_SESSION: SessionDetails = SessionDetails(lege_session="87", lege_ses
 # test.get_legislators(driver)
 house_bills = SessionInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
 house_bills.fetch()
+# test = next(house_bills.bills)
 
 # models = [x.model_dump() for x in house_bills.bills.values()]
 # TODO: Deal with BillDetails references in Bill Interface Module to avoid circular imports.

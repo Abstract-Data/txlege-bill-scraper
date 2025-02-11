@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Generator
 from urllib.parse import parse_qs, urlparse
 
 from selenium.common.exceptions import NoSuchElementException
@@ -79,14 +79,17 @@ class BillListInterface(InterfaceBase):
 
     @classmethod
     @LogFireLogger.logfire_method_decorator("BillListInterface.fetch")
-    def fetch(cls) -> Dict[str, Dict[str, str]]:
+    def fetch(cls) -> Generator[Dict[str, Dict[str, str]], None, None]:
         # with logfire_context(f"BillListInterface._build_bill_list({cls.chamber.full})"):
         cls.navigate_to_page()
         bill_links = cls._get_bill_links()
-        bills = {}
+        # bills = {}
         for bill in bill_links:
-            bills[bill[0]] = {
-                "bill_id": f"{cls.legislative_session}_{bill[0]}",
+            # bills[bill[0]] = {
+            #     "bill_id": f"{cls.legislative_session}_{bill[0]}",
+            #     "bill_url": bill[1],
+            # }
+            yield {bill[0]: {
+                "bill_id": f"{cls.legislative_session.lege_session}{cls.legislative_session.lege_session_desc}_{bill[0]}",
                 "bill_url": bill[1],
-            }
-        return bills
+            }}
