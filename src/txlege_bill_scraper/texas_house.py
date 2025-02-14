@@ -1,7 +1,7 @@
-from interfaces import SessionInterface, SessionDetails
+from interfaces import SessionDetails, SessionDetailInterface
 
 # from legislator import LegislatorBase
-from protocols import HOUSE
+from interfaces.protocols import HOUSE
 
 # with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
 #     urls: Dict = tomli.load(config)
@@ -9,7 +9,7 @@ from protocols import HOUSE
 # TLO_MAIN_URL = urls.get("MAIN-TLO-URL")
 # TLO_CHAMBER_LIST = TLO_MAIN_URL + urls["CHAMBER-URLS"]["MEMBER-LIST"]
 #
-LEGISLATIVE_SESSION: SessionDetails = SessionDetails(lege_session="87", lege_session_desc="1")
+LEGISLATIVE_SESSION: SessionDetails = SessionDetails(lege_session="87", lege_session_desc="R")
 #
 # MEMBER_BILL_TYPE_URL = "https://capitol.texas.gov/reports/report.aspx?LegSess={session}}&ID={bill_writer_type}&Code={member_id}"
 #
@@ -156,8 +156,11 @@ LEGISLATIVE_SESSION: SessionDetails = SessionDetails(lege_session="87", lege_ses
 
 # test = TxLegeLoader(Chamber.HOUSE)
 # test.get_legislators(driver)
-house_bills = SessionInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
+house_bills = SessionDetailInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
+house_bills.links.fetch()
 house_bills.fetch()
+amendements = [x['amendments'] for x in house_bills.links.bills.values() if x['amendments']]
+co_authors = [x['amendment_coauthors'] for x in house_bills.links.bills.values() if x['amendment_coauthors']]
 # test = next(house_bills.bills)
 
 # models = [x.model_dump() for x in house_bills.bills.values()]

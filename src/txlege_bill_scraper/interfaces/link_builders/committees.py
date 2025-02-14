@@ -11,10 +11,10 @@ from selenium.webdriver.support import expected_conditions as EC
 # from txlege_bill_scraper.protocols import ChamberTuple, HOUSE
 from txlege_bill_scraper.build_logger import LogFireLogger
 
-from txlege_bill_scraper.bases import InterfaceBase
+from .bases import LegislativeSessionLinkBuilder
 
 
-class CommitteeInterface(InterfaceBase):
+class CommitteeInterface(LegislativeSessionLinkBuilder):
     @classmethod
     @LogFireLogger.logfire_method_decorator(
         "CommitteeInterface._navigate_to_committee_page"
@@ -32,8 +32,8 @@ class CommitteeInterface(InterfaceBase):
             W_.until(EC.element_to_be_clickable((By.ID, "content")))
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("CommitteeInterface._get_committee_list")
-    def _get_committee_list(cls) -> Dict:
+    @LogFireLogger.logfire_method_decorator("CommitteeInterface.get_links")
+    def get_links(cls) -> Dict[str, Dict[str, str]]:
         with super().driver_and_wait() as (D_, W_):
             ic(D_.current_url)
             _has_committee = "Committees" in D_.current_url
@@ -55,74 +55,69 @@ class CommitteeInterface(InterfaceBase):
                     "committee_chamber": cls.chamber.full,
                     "committee_name": _committee_name,
                     "committee_url": _committee_url,
+                    "committee_id": parse_qs(urlparse(_committee_url).query)["CmteCode"][0],
                 }
             return _list_of_committees
 
-    @classmethod
-    def _get_committee_details(cls, committee: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-        with super().driver_and_wait() as (D_, W_):
-            D_.get(committee["committee_url"])
-            content_div = W_.until(EC.presence_of_element_located((By.ID, "content")))
-
-            committee_table = content_div.find_element(By.TAG_NAME, "table")
-            rows = committee_table.find_elements(By.TAG_NAME, "tr")
-            for row in rows:
-                cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) == 2:  # Only process rows with two cells
-                    key = tuple(cells[0].text.split(":"))
-                    value = tuple(cells[1].text.split(":"))
-                    if len(value) == 2:
-                        committee[value[0].strip()] = value[1].strip()
-                    if len(key) == 2:
-                        committee[key[0].strip()] = key[1].strip()
-
-            try:
-                members_table = content_div.find_elements(By.TAG_NAME, "table")[
-                    1
-                ]  # Second table for members
-            except IndexError:
-                return committee
-
-            # Capture member information from the second table
-            members_info = []
-            member_rows = members_table.find_elements(By.TAG_NAME, "tr")[
-                1:
-            ]  # Skip header row
-
-            for member_row in member_rows:
-                cells = member_row.find_elements(By.TAG_NAME, "td")
-                if len(cells) == 2:
-                    position = (
-                        cells[0]
-                        .text.strip()
-                        .replace(":", "")
-                        .replace("Members", "")
-                        .strip()
-                    )
-                    name_link = cells[1].find_element(By.TAG_NAME, "a")
-                    name = name_link.text
-                    link = name_link.get_attribute("href")
-                    members_info.append(
-                        {
-                            "position": position if position else "Member",
-                            "name": name,
-                            "id": parse_qs(urlparse(link).query)["LegCode"][0],
-                        }
-                    )
-            committee["members"] = members_info
-            return committee
-
-    @classmethod
-    @LogFireLogger.logfire_method_decorator("CommitteeInterface.fetch")
-    def fetch(cls) -> Generator[Dict[str, Dict[str, Any]], None, None]:
-        cls.navigate_to_page()
-        _committees = cls._get_committee_list()
-        for committee in _committees:
-            yield {committee: cls._get_committee_details(_committees[committee])}
-        #     _committees[committee] = cls._get_committee_details(_committees[committee])
-        # _details = {x: cls._get_committee_details(_committees[x]) for x in _committees}
-        # cls.committees = {x["committee"]: x for x in _details}
-        # return _details
+    # @classmethod
+    # def _get_committee_details(cls, committee: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    #     with super().driver_and_wait() as (D_, W_):
+    #         D_.get(committee["committee_url"])
+    #         content_div = W_.until(EC.presence_of_element_located((By.ID, "content")))
+    #
+    #         committee_table = content_div.find_element(By.TAG_NAME, "table")
+    #         rows = committee_table.find_elements(By.TAG_NAME, "tr")
+    #         for row in rows:
+    #             cells = row.find_elements(By.TAG_NAME, "td")
+    #             if len(cells) == 2:  # Only process rows with two cells
+    #                 key = tuple(cells[0].text.split(":"))
+    #                 value = tuple(cells[1].text.split(":"))
+    #                 if len(value) == 2:
+    #                     committee[value[0].strip()] = value[1].strip()
+    #                 if len(key) == 2:
+    #                     committee[key[0].strip()] = key[1].strip()
+    #
+    #         try:
+    #             members_table = content_div.find_elements(By.TAG_NAME, "table")[
+    #                 1
+    #             ]  # Second table for members
+    #         except IndexError:
+    #             return committee
+    #
+    #         # Capture member information from the second table
+    #         members_info = {}
+    #         member_rows = members_table.find_elements(By.TAG_NAME, "tr")[
+    #             1:
+    #         ]  # Skip header row
+    #         # committee['members'] = {}
+    #         for member_row in member_rows:
+    #             cells = member_row.find_elements(By.TAG_NAME, "td")
+    #             if len(cells) == 2:
+    #                 position = (
+    #                     cells[0]
+    #                     .text.strip()
+    #                     .replace(":", "")
+    #                     .replace("Members", "")
+    #                     .strip()
+    #                 )
+    #                 name_link = cells[1].find_element(By.TAG_NAME, "a")
+    #                 name = name_link.text
+    #                 link = name_link.get_attribute("href")
+    #                 committee_member_id = parse_qs(urlparse(link).query)["LegCode"][0]
+    #                 individual_member_details = (
+    #                     {
+    #                         "committee_member_position": position if position else "Member",
+    #                         "committee_member_name": name,
+    #                         "committee_id": committee['committee_id'],
+    #                         "committee_member_id": committee_member_id,
+    #                         "committee_member_url": link,
+    #                     }
+    #                 )
+    #                 committee.setdefault('members', dict()).update({committee_member_id: individual_member_details})
+    #         #         members_info[committee_member_id] = individual_member_details
+    #         #
+    #         # committee["members"] = members_info
+    #         return committee
 
         # committee_page = _driver.find_element(By.ID, "content")
         # cls.committees[cls.committees.index(committee)] = (committee[0], committee_page.text)

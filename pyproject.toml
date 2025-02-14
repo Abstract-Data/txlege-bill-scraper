@@ -11,6 +11,7 @@ dependencies = [
     "beautifulsoup4>=4.12.3",
     "fastapi>=0.115.7",
     "html5lib>=1.1",
+    "httpx>=0.28.1",
     "icecream>=2.1.4",
     "inject>=5.2.1",
     "ipython>=8.31.0",

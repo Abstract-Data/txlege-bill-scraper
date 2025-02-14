@@ -1,7 +1,7 @@
 from __future__ import annotations
 import abc
 from functools import partial
-from typing import Dict, Any, Generator, Optional, ClassVar, List
+from typing import Dict, Any, Generator, Optional, ClassVar, List, Tuple, Self
 from contextlib import contextmanager
 import functools
 from dataclasses import dataclass, field
@@ -17,7 +17,7 @@ import inject
 from inject import Binder, configure_once
 import logfire
 
-from txlege_bill_scraper.protocols import BrowserDriver, BrowserWait, ChamberTuple, SessionDetails
+from interfaces.protocols import BrowserDriver, BrowserWait, ChamberTuple, SessionDetails
 from txlege_bill_scraper.driver import BuildWebDriver, DriverAndWaitContext
 from txlege_bill_scraper.build_logger import LogFireLogger
 from txlege_bill_scraper import CONFIG
@@ -48,17 +48,19 @@ class NonDBModelBase(BaseModel):
 
 
 @dataclass
-class InterfaceBase(abc.ABC):
+class LegislativeSessionLinkBuilder(abc.ABC):
     chamber: ChamberTuple
-    legislative_session: SessionDetails
-    bills: Generator[Dict[str, Any], None, None] = field(default_factory=dict)
+    legislative_session: str | int | SessionDetails
+    bills: Dict[str, Dict[str, str]] = field(default_factory=dict)
     committees: Dict[str, Dict] = field(default_factory=dict)
-    members: list[Dict] = field(default_factory=list)
+    members: Dict[str, Dict[str, str]] = field(default_factory=dict)
+    lege_session_id: str = field(default_factory=str)
     _base_url: ClassVar[str] = CONFIG['TLO-BASE-URL']
     _tlo_session_dropdown_value: Optional[str] = None
 
-    def __init__(self):
+    def __post_init__(self):
         logfire.info(f"InterfaceBase initialized with {self.chamber} and {self.legislative_session}")
+        self.lege_session_id = f"{self.legislative_session.lege_session}-{self.legislative_session.lege_session_desc}"
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.chamber}, {self.legislative_session})"
@@ -67,11 +69,6 @@ class InterfaceBase(abc.ABC):
     @inject.params(_driver=BrowserDriver, _wait=BrowserWait)
     def driver_and_wait(cls, _driver: BrowserDriver, _wait: BrowserWait) -> DriverAndWaitContext:
         return BuildWebDriver.driver_and_wait(_driver, _wait)
-
-    @classmethod
-    @abc.abstractmethod
-    def navigate_to_page(cls, *args, **kwargs) -> None:
-        ...
 
     @classmethod
     @LogFireLogger.logfire_method_decorator("InterfaceBase._select_legislative_session")
@@ -129,6 +126,18 @@ class InterfaceBase(abc.ABC):
         except:
             return None
 
+    # @classmethod
+    # def get_document_type(cls, href: str) -> str:
+    #     """Determine document type based on URL and image alt text"""
+    #     if '.pdf' in href:
+    #         return 'pdf'
+    #     elif '.docx' in href:
+    #         return 'word'
+    #     elif '.htm' in href:
+    #         return 'html'
+    #     elif '.txt' in href:
+    #         return 'text'
+
     @classmethod
     @contextmanager
     def get_text_by_label_context(cls, element) -> Generator[partial[str | None], Any, None]:
@@ -138,8 +147,16 @@ class InterfaceBase(abc.ABC):
             pass
 
     @classmethod
+    def fetch(cls, *args, **kwargs) -> List[Tuple[str, str]] | Dict[str, Dict[str, str]]:
+        cls.navigate_to_page(*args, **kwargs)
+        return cls.get_links(*args, **kwargs)
+
+    @classmethod
     @abc.abstractmethod
-    def fetch(cls, *args, **kwargs) -> List[Dict[str, Any]]:
+    def navigate_to_page(cls, *args, **kwargs) -> None:
         ...
 
-
+    @classmethod
+    @abc.abstractmethod
+    def get_links(cls, *args, **kwargs) -> List[Tuple[str, str]]:
+        ...

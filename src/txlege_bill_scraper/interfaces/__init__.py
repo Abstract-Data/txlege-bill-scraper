@@ -1,4 +1,4 @@
-from .lege_session import SessionInterface, SessionDetails
+from .lege_session import SessionInterfaceBase, SessionDetails, SessionDetailInterface
 
 # from __future__ import annotations
 #

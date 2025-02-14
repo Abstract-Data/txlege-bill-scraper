@@ -9,7 +9,7 @@ from urllib.parse import urljoin
 
 from build_logger import LogFireLogger
 from driver import BuildWebDriver, WebDriver
-from bases import InterfaceBase
+from .link_builders.bases import LegislativeSessionLinkBuilder
 
 
 def get_cell_content(cell_id: str, _driver) -> Optional[str]:
@@ -45,7 +45,7 @@ def _get_subjects(_driver: WebDriver ) -> list[str]:
 
 
 
-class BillDetailInterface(InterfaceBase):
+class BillDetailInterface(LegislativeSessionLinkBuilder):
 
     def navigate_to_page(cls, *args, **kwargs) -> None:
         pass
@@ -263,18 +263,6 @@ class BillDetailInterface(InterfaceBase):
                             })
                     amendments.append(amendment_info)
             return amendments
-
-    @staticmethod
-    def get_document_type(href: str) -> str:
-        """Determine document type based on URL and image alt text"""
-        if '.pdf' in href:
-            return 'pdf'
-        elif '.docx' in href:
-            return 'word'
-        elif '.htm' in href:
-            return 'html'
-        elif '.txt' in href:
-            return 'text'
 
     @classmethod
     @LogFireLogger.logfire_method_decorator("BillDetailInterface.fetch")
