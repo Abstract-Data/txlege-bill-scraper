@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Generator
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urljoin
 from icecream import ic
+from bs4 import BeautifulSoup
 
 import logfire
 from selenium.common.exceptions import NoSuchElementException
@@ -11,7 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from txlege_bill_scraper.build_logger import LogFireLogger
-
+from txlege_bill_scraper.protocols import TYPE_PREFIXES
 from .bases import LegislativeSessionLinkBuilder
 
 
@@ -149,19 +150,24 @@ class MemberListInterface(LegislativeSessionLinkBuilder):
             # )
 
             logfire.debug(f"MemberListInterface._get_member_list(): {cls.chamber.full}")
-            _members_table = D_.find_element(By.ID, "dataListMembers")
-            _list_of_members = _members_table.find_elements(By.TAG_NAME, "li")
+
+            soup = BeautifulSoup(D_.page_source, "html.parser")
+
+            _content = soup.find("div", {"id": "content"})
+            _table = _content.find("table")
+
+
+            _list_of_members = _table.find_all("li")
+            _member_url_pfx = urljoin(cls._base_url, TYPE_PREFIXES.MEMBERS)
             member_list = dict()
             for member in _list_of_members:
-                _member_name = member.find_element(By.TAG_NAME, "a").text
-                _member_url = member.find_element(By.TAG_NAME, "a").get_attribute(
-                    "href"
-                )
-                _member_id = parse_qs(urlparse(_member_url).query)["Code"][0]
+                _member_url = member.find("a")
+                _member_name = _member_url.text.strip()
+                _member_id = parse_qs(urlparse(_member_url.get('href')).query)["Code"][0]
                 member_list[_member_id] = {
                     "id": _member_id,
                     "name": _member_name,
-                    "member_url": _member_url,
+                    "member_url": urljoin(_member_url_pfx, _member_url.get("href")),
                     "member_session_id": cls.lege_session_id
                 }
             return member_list

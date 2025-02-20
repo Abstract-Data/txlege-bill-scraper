@@ -1,7 +1,8 @@
-from interfaces import SessionDetails, SessionDetailInterface
+from interfaces import SessionDetailInterface
+from protocols import SessionDetails
 
 # from legislator import LegislatorBase
-from interfaces.protocols import HOUSE
+from protocols import HOUSE
 
 # with open(Path(__file__).parent / "tlo_urls.toml", "rb") as config:
 #     urls: Dict = tomli.load(config)
@@ -159,8 +160,10 @@ LEGISLATIVE_SESSION: SessionDetails = SessionDetails(lege_session="87", lege_ses
 house_bills = SessionDetailInterface(chamber=HOUSE, legislative_session=LEGISLATIVE_SESSION)
 house_bills.links.fetch()
 house_bills.fetch()
-amendements = [x['amendments'] for x in house_bills.links.bills.values() if x['amendments']]
-co_authors = [x['amendment_coauthors'] for x in house_bills.links.bills.values() if x['amendment_coauthors']]
+amendments = [x for x in house_bills.links.bills.values() if x.amendments]
+test = house_bills.links.bills.get('HB1')
+str(test.bill_url)
+# co_authors = [x['amendment_coauthors'] for x in house_bills.links.bills.values() if x.get('amendment_coauthors')]
 # test = next(house_bills.bills)
 
 # models = [x.model_dump() for x in house_bills.bills.values()]

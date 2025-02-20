@@ -86,10 +86,15 @@ class MemberDetailScraper(DetailScrapingInterface):
             members: Dict[str, Dict[str, str]],
             _client: httpx.AsyncClient,
             _sem: asyncio.Semaphore) -> Dict[str, Dict[str, str]]:
+        counter = 0
         async def get_individual_member(_m: Dict[str, str]):
             async with _sem:
                 _m = await cls.get_member_info(_client, _m)
                 _m = await cls.get_member_bill_urls(_client, _m)
+                nonlocal counter
+                counter += 1
+                if counter % 10 == 0:
+                    print(f"Processed {counter} members")
                 return _m
         tasks = [
             asyncio.create_task(get_individual_member(dict(m))) for m in members.values()

@@ -1,8 +1,4 @@
-from pathlib import Path
-from typing import Dict, Final
-
 import logfire
-import tomli
 
 
 def scrubbing_callback(m: logfire.ScrubMatch):
@@ -28,5 +24,3 @@ logfire.instrument_system_metrics(
         "system.swap.utilization": ["used"],
     }
 )
-
-CONFIG: Final[Dict] = tomli.load(open(Path(__file__).parent / "tlo_urls.toml", "rb"))

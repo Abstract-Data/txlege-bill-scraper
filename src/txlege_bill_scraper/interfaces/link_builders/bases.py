@@ -17,10 +17,18 @@ import inject
 from inject import Binder, configure_once
 import logfire
 
-from interfaces.protocols import BrowserDriver, BrowserWait, ChamberTuple, SessionDetails
+from txlege_bill_scraper.protocols import (
+    BrowserDriver,
+    BrowserWait,
+    ChamberTuple,
+    SessionDetails,
+    TLO_URLS,
+    TYPE_PREFIXES,
+    ScrapedPageElement,
+    ScrapedPageContainer
+)
 from txlege_bill_scraper.driver import BuildWebDriver, DriverAndWaitContext
 from txlege_bill_scraper.build_logger import LogFireLogger
-from txlege_bill_scraper import CONFIG
 
 # TODO: Figure out how to get dependency injection to work correctly.
 
@@ -55,8 +63,9 @@ class LegislativeSessionLinkBuilder(abc.ABC):
     committees: Dict[str, Dict] = field(default_factory=dict)
     members: Dict[str, Dict[str, str]] = field(default_factory=dict)
     lege_session_id: str = field(default_factory=str)
-    _base_url: ClassVar[str] = CONFIG['TLO-BASE-URL']
+    _base_url: ClassVar[str] = TLO_URLS.BASE
     _tlo_session_dropdown_value: Optional[str] = None
+    _use_scrape_fallback: ClassVar[bool] = True
 
     def __post_init__(self):
         logfire.info(f"InterfaceBase initialized with {self.chamber} and {self.legislative_session}")

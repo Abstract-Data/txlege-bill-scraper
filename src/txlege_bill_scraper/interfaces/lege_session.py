@@ -7,16 +7,17 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 import httpx
 
-from interfaces.link_builders import (
-    ChamberTuple,
+from txlege_bill_scraper.interfaces.link_builders import (
     LegislativeSessionLinkBuilder,
-    SessionDetails,
     BillListInterface,
     MemberListInterface,
     CommitteeInterface
 )
+from txlege_bill_scraper.protocols import ChamberTuple, SessionDetails, BillDocFileType
 from interfaces.scrapers import DetailScrapingInterface, MemberDetailScraper, BillDetailScraper
+from txlege_bill_scraper.models.bills import TXLegeBill
 from txlege_bill_scraper.build_logger import LogFireLogger
+
 from .bill_details import BillDetailInterface
 
 logfire_context = LogFireLogger.logfire_context
@@ -28,7 +29,7 @@ OutputGenerator = Union[
 class SessionInterfaceBase(LegislativeSessionLinkBuilder):
     chamber: ChamberTuple
     legislative_session: str | int | SessionDetails
-    bills: OutputGenerator = field(default_factory=dict)
+    bills: Dict[str, TXLegeBill] = field(default_factory=dict)
     committees: OutputGenerator = field(default_factory=dict)
     members: OutputGenerator = field(default_factory=list)
 
@@ -83,6 +84,7 @@ class SessionInterfaceBase(LegislativeSessionLinkBuilder):
         self.build_committee_list()
 
 class SessionDetailInterface(DetailScrapingInterface):
+    links: Optional[SessionInterfaceBase] = None
 
     def __init__(self, chamber: ChamberTuple, legislative_session: str | int):
         self.links = SessionInterfaceBase(chamber, legislative_session)
@@ -92,12 +94,11 @@ class SessionDetailInterface(DetailScrapingInterface):
 
 
     async def build_detail(self):
-        semaphore = asyncio.Semaphore(10)
         async with httpx.AsyncClient(timeout=self.timeout, limits=self.limits) as client:
             member_task = asyncio.create_task(
-                MemberDetailScraper.fetch(self.links.members, _client=client, _sem=semaphore))
+                MemberDetailScraper.fetch(self.links.members, _client=client, _sem=self.semaphore))
             bill_task = asyncio.create_task(
-                BillDetailScraper.fetch(self.links.bills, _client=client, _sem=semaphore))
+                BillDetailScraper.fetch(self.links.bills, _client=client, _sem=self.semaphore))
 
             self.links.members = await member_task
             self.links.bills = await bill_task

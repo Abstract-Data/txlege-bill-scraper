@@ -1,8 +1,4 @@
-from .bases import (
-    ChamberTuple,
-    LegislativeSessionLinkBuilder,
-    SessionDetails
-)
-from .bill_list import BillListInterface
+from .bases import LegislativeSessionLinkBuilder
+from .bill_list import BillListInterface, TXLegeBill
 from .committees import CommitteeInterface
 from .members import MemberListInterface

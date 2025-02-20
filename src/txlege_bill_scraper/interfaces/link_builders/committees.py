@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 from typing import List, Tuple, Dict, Any, Generator
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urljoin
 from icecream import ic
+from bs4 import BeautifulSoup
 
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 
-# from txlege_bill_scraper.protocols import ChamberTuple, HOUSE
 from txlege_bill_scraper.build_logger import LogFireLogger
 
-from .bases import LegislativeSessionLinkBuilder
-
+from . import LegislativeSessionLinkBuilder
+from txlege_bill_scraper.protocols import TYPE_PREFIXES, ChamberTuple
 
 class CommitteeInterface(LegislativeSessionLinkBuilder):
     @classmethod
@@ -45,16 +45,19 @@ class CommitteeInterface(LegislativeSessionLinkBuilder):
             except Exception as e:
                 raise e
 
+            soup = BeautifulSoup(D_.page_source, "html.parser")
+            _container = soup.find("div", {"id": "content"})
+            _committee_table = _container.find_all("li")
+            _committee_url_pfx = urljoin(cls._base_url, TYPE_PREFIXES.COMMITTEES)
             _list_of_committees = {}
             for _committee in _committee_table:
-                _committee_name = _committee.find_element(By.TAG_NAME, "a").text
-                _committee_url = _committee.find_element(
-                    By.TAG_NAME, "a"
-                ).get_attribute("href")
+                _committee_link = _committee.find("a")
+                _committee_name = _committee_link.text.strip()
+                _committee_url = _committee_link.get("href")
                 _list_of_committees[_committee_name] = {
                     "committee_chamber": cls.chamber.full,
                     "committee_name": _committee_name,
-                    "committee_url": _committee_url,
+                    "committee_url": urljoin(_committee_url_pfx, _committee_url),
                     "committee_id": parse_qs(urlparse(_committee_url).query)["CmteCode"][0],
                 }
             return _list_of_committees
