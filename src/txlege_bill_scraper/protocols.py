@@ -51,6 +51,7 @@ class BillDocDescription(str, Enum):
     WITNESS_LIST = 'Witness List'
     SUMMARY = 'Bill Summary'
     AMENDMENT = 'Amendment'
+
 TYPE_PREFIXES = TypePrefix()
 TLO_URLS = TLOBaseUrls()
 HOUSE = ChamberTuple(pfx="H" , full="House", member_pfx="Rep", bill_pfx="HB")

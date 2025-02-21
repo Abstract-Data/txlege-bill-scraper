@@ -4,6 +4,8 @@ import abc
 from typing import Self, ClassVar
 import httpx
 from urllib.parse import urljoin
+from bs4 import BeautifulSoup
+import logfire
 
 from txlege_bill_scraper.protocols import TLO_URLS, BillDocFileType
 from interfaces.link_builders import LegislativeSessionLinkBuilder
@@ -19,6 +21,24 @@ class DetailScrapingInterface(abc.ABC):
     def build_url(cls, href: str) -> str:
         new_url = urljoin(cls.links._base_url, href.replace('..', ''))
         return new_url
+
+    @classmethod
+    async def fetch_with_retries(cls, client: httpx.AsyncClient, url: str, max_retries: int = 5) -> BeautifulSoup | None:
+        retries = 0
+        while retries < max_retries:
+            try:
+                response = await client.get(url)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.text, "html.parser")
+                return soup
+            except (httpx.ConnectError, httpx.ReadTimeout):
+                retries += 1
+                logfire.warn(
+                    f"Failed to connect to {url}, retrying {retries}/{max_retries}"
+                )
+                await asyncio.sleep(2)
+        logfire.error(f"Failed to connect to {url} after {max_retries} attempts")
+        return None
 
     @classmethod
     def get_document_type(cls, href: str) -> BillDocFileType:

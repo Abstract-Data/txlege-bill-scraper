@@ -60,7 +60,7 @@ class LegislativeSessionLinkBuilder(abc.ABC):
     chamber: ChamberTuple
     legislative_session: str | int | SessionDetails
     bills: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    committees: Dict[str, Dict] = field(default_factory=dict)
+    committees: Dict[str, SQLModel] = field(default_factory=dict)
     members: Dict[str, Dict[str, str]] = field(default_factory=dict)
     lege_session_id: str = field(default_factory=str)
     _base_url: ClassVar[str] = TLO_URLS.BASE

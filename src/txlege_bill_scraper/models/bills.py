@@ -1,4 +1,4 @@
-from typing import Optional, Annotated, Dict, Any
+from typing import Optional, Annotated, Dict, Any, List
 from enum import Enum
 from sqlmodel import Field as SQLModelField, Relationship, JSON, SQLModel, Date, Time
 from .bases import TexasLegislatureModelBase
@@ -10,7 +10,7 @@ from datetime import datetime, date
 
 from txlege_bill_scraper.protocols import BillDocFileType, BillDocDescription
 from txlege_bill_scraper.build_logger import LogFireLogger
-# from .committees import CommitteeDetails, CommitteeBillStatus, CommitteeVoteCount
+from .committees import CommitteeDetails, CommitteeVote
 
 def get_element_text(element: Any) -> str | list | None:
     if element:
@@ -78,6 +78,15 @@ class BillVersion(TexasLegislatureModelBase):
     committee_summary_docs: Optional[list[BillDoc]] = SQLModelField(default_factory=list)
     fiscal_impact_docs: Optional[list[BillDoc]] = SQLModelField(default_factory=list)
 
+class BillAction(TexasLegislatureModelBase):
+    bill_id: Optional[str] = None
+    tier: str
+    description: str
+    description_url: Optional[HttpsValidatedURL] = None
+    comment: Optional[str] = None
+    action_date: Optional[date] = None
+    action_time: Optional[Time] = None
+    journal_page: Optional[str] = None
 
 class TXLegeBill(TexasLegislatureModelBase):
     bill_id: Optional[str] = None
@@ -89,11 +98,12 @@ class TXLegeBill(TexasLegislatureModelBase):
     caption_text: WebElementText = None
     authors: WebElementText = None
     sponsors: WebElementText = None
-    subjects: Optional[list[str]] = None
-    versions: Optional[Dict[str, BillVersion]] = None
-    amendments: Optional[list[BillAmendment]] = None
-    companions: Optional[list[BillCompanion]] = SQLModelField(default_factory=list)
-    committees: Optional[dict[str, Dict]] = SQLModelField(default_factory=dict)
+    subjects: Optional[List[str]] = None
+    versions: Optional[Dict[str, BillVersion]] = SQLModelField(default_factory=dict)
+    amendments: Optional[List[BillAmendment]] = SQLModelField(default_factory=list)
+    companions: List[BillCompanion] = SQLModelField(default_factory=list)
+    committees: List[str] = SQLModelField(default_factory=list)
+    actions: List[BillAction] = SQLModelField(default_factory=list)
 
     def create_ids(self):
         self.bill_id = f"{self.legislative_session}-{self.bill_number}"

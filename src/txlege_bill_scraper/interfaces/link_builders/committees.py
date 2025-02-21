@@ -12,6 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from txlege_bill_scraper.build_logger import LogFireLogger
 
 from . import LegislativeSessionLinkBuilder
+from txlege_bill_scraper.models.committees import CommitteeDetails
 from txlege_bill_scraper.protocols import TYPE_PREFIXES, ChamberTuple
 
 class CommitteeInterface(LegislativeSessionLinkBuilder):
@@ -54,12 +55,13 @@ class CommitteeInterface(LegislativeSessionLinkBuilder):
                 _committee_link = _committee.find("a")
                 _committee_name = _committee_link.text.strip()
                 _committee_url = _committee_link.get("href")
-                _list_of_committees[_committee_name] = {
-                    "committee_chamber": cls.chamber.full,
-                    "committee_name": _committee_name,
-                    "committee_url": urljoin(_committee_url_pfx, _committee_url),
-                    "committee_id": parse_qs(urlparse(_committee_url).query)["CmteCode"][0],
-                }
+                _committee_id = parse_qs(urlparse(_committee_url).query)["CmteCode"][0]
+                _list_of_committees[_committee_id] = CommitteeDetails(
+                    committee_name=_committee_name,
+                    committee_chamber= cls.chamber.full,
+                    committee_url= urljoin(_committee_url_pfx, _committee_url),
+                    committee_id=_committee_id,
+                )
             return _list_of_committees
 
     # @classmethod

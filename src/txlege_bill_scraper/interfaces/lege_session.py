@@ -11,11 +11,15 @@ from txlege_bill_scraper.interfaces.link_builders import (
     LegislativeSessionLinkBuilder,
     BillListInterface,
     MemberListInterface,
-    CommitteeInterface
+    CommitteeInterface,
 )
 from txlege_bill_scraper.protocols import ChamberTuple, SessionDetails, BillDocFileType
-from interfaces.scrapers import DetailScrapingInterface, MemberDetailScraper, BillDetailScraper
-from txlege_bill_scraper.models.bills import TXLegeBill
+from interfaces.scrapers import (
+    DetailScrapingInterface,
+    MemberDetailScraper,
+    BillDetailScraper,
+)
+from txlege_bill_scraper.models.bills import TXLegeBill, CommitteeDetails
 from txlege_bill_scraper.build_logger import LogFireLogger
 
 from .bill_details import BillDetailInterface
@@ -23,16 +27,21 @@ from .bill_details import BillDetailInterface
 logfire_context = LogFireLogger.logfire_context
 
 OutputGenerator = Union[
-    Dict[str, Dict[str, Any]], Dict[str, Any], Dict[str, Dict], list[Dict], list[tuple[str, str]]]  #type: ignore
+    Dict[str, Dict[str, Any]],
+    Dict[str, Any],
+    Dict[str, Dict],
+    list[Dict],
+    list[tuple[str, str]],
+]  # type: ignore
+
 
 @dataclass
 class SessionInterfaceBase(LegislativeSessionLinkBuilder):
     chamber: ChamberTuple
     legislative_session: str | int | SessionDetails
     bills: Dict[str, TXLegeBill] = field(default_factory=dict)
-    committees: OutputGenerator = field(default_factory=dict)
+    committees: Dict[str, CommitteeDetails] = field(default_factory=dict)
     members: OutputGenerator = field(default_factory=list)
-
 
     def __init__(self, chamber: ChamberTuple, legislative_session: str | int):
         super().__init__(chamber, legislative_session)
@@ -83,6 +92,7 @@ class SessionInterfaceBase(LegislativeSessionLinkBuilder):
         self.build_member_list()
         self.build_committee_list()
 
+
 class SessionDetailInterface(DetailScrapingInterface):
     links: Optional[SessionInterfaceBase] = None
 
@@ -91,14 +101,20 @@ class SessionDetailInterface(DetailScrapingInterface):
         DetailScrapingInterface.links = self.links
         BillDetailScraper.links = self.links
 
-
-
     async def build_detail(self):
-        async with httpx.AsyncClient(timeout=self.timeout, limits=self.limits) as client:
+        async with httpx.AsyncClient(
+            timeout=self.timeout, limits=self.limits
+        ) as client:
             member_task = asyncio.create_task(
-                MemberDetailScraper.fetch(self.links.members, _client=client, _sem=self.semaphore))
+                MemberDetailScraper.fetch(
+                    self.links.members, _client=client, _sem=self.semaphore
+                )
+            )
             bill_task = asyncio.create_task(
-                BillDetailScraper.fetch(self.links.bills, _client=client, _sem=self.semaphore))
+                BillDetailScraper.fetch(
+                    self.links.bills, _client=client, _sem=self.semaphore
+                )
+            )
 
             self.links.members = await member_task
             self.links.bills = await bill_task
