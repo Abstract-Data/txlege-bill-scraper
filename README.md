@@ -5,7 +5,7 @@ This repository contains the code to scrape the Texas Legislature website for bi
 ## Interfaces
 The code provides two interfaces for scraping the Texas Legislature website:
 
-  - ### Link Builders
+  - ### Link Builders  
   The link builders interface provides functions to generate the URLs for the Texas Legislature website. The functions generate URLs for the bill search page, the bill text page, and the bill history page. The functions take parameters such as the bill number, session, and chamber to generate the URLs.
 
     - #### Bases  
