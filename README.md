@@ -5,34 +5,34 @@ This repository contains the code to scrape the Texas Legislature website for bi
 ## Interfaces
 The code provides two interfaces for scraping the Texas Legislature website:
 
-- ### Link Builders
-The link builders interface provides functions to generate the URLs for the Texas Legislature website. The functions generate URLs for the bill search page, the bill text page, and the bill history page. The functions take parameters such as the bill number, session, and chamber to generate the URLs.
+  - ### Link Builders
+  The link builders interface provides functions to generate the URLs for the Texas Legislature website. The functions generate URLs for the bill search page, the bill text page, and the bill history page. The functions take parameters such as the bill number, session, and chamber to generate the URLs.
 
-  - #### Bases  
+    - #### Bases  
     This script defines an abstract base class and several utility functions to facilitate the scraping of legislative session data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping), `pydantic` for data validation, and `selenium` for web scraping. The script includes the following key components:
       
-    - **Utility Functions**:
-      - `get_link`: Retrieves the URL of a link element based on its text.
-      
-      - **Dependency Injection**:
-        - `configure_injection`: Configures dependency injection for `BrowserDriver` and `BrowserWait`.
-      
-      - **Base Classes**:
-        - `DBModelBase`: A base class for database models.
-        - `NonDBModelBase`: A base class for non-database models.
-      
-      - **Abstract Base Class**:
-        - `LegislativeSessionLinkBuilder`: An abstract base class for building links related to legislative sessions. It includes methods for selecting legislative sessions, fetching data, and navigating pages.
-      
-      - **Methods**:
-        - `LegislativeSessionLinkBuilder.driver_and_wait`: Provides a context manager for the web driver and wait.
-        - `LegislativeSessionLinkBuilder.select_legislative_session`: Selects a legislative session from a dropdown.
-        - `LegislativeSessionLinkBuilder._legistative_session_selector`: Helper method for selecting a legislative session.
-        - `LegislativeSessionLinkBuilder._get_text_by_label`: Retrieves text by label from a web element.
-        - `LegislativeSessionLinkBuilder.get_text_by_label_context`: Context manager for getting text by label.
-        - `LegislativeSessionLinkBuilder.fetch`: Fetches data by navigating to a page and getting links.
-        - `LegislativeSessionLinkBuilder.navigate_to_page`: Abstract method for navigating to a page.
-        - `LegislativeSessionLinkBuilder.get_links`: Abstract method for getting links.
+      - **Utility Functions**:
+        - `get_link`: Retrieves the URL of a link element based on its text.
+        
+        - **Dependency Injection**:
+          - `configure_injection`: Configures dependency injection for `BrowserDriver` and `BrowserWait`.
+        
+        - **Base Classes**:
+          - `DBModelBase`: A base class for database models.
+          - `NonDBModelBase`: A base class for non-database models.
+        
+        - **Abstract Base Class**:
+          - `LegislativeSessionLinkBuilder`: An abstract base class for building links related to legislative sessions. It includes methods for selecting legislative sessions, fetching data, and navigating pages.
+        
+        - **Methods**:
+          - `LegislativeSessionLinkBuilder.driver_and_wait`: Provides a context manager for the web driver and wait.
+          - `LegislativeSessionLinkBuilder.select_legislative_session`: Selects a legislative session from a dropdown.
+          - `LegislativeSessionLinkBuilder._legistative_session_selector`: Helper method for selecting a legislative session.
+          - `LegislativeSessionLinkBuilder._get_text_by_label`: Retrieves text by label from a web element.
+          - `LegislativeSessionLinkBuilder.get_text_by_label_context`: Context manager for getting text by label.
+          - `LegislativeSessionLinkBuilder.fetch`: Fetches data by navigating to a page and getting links.
+          - `LegislativeSessionLinkBuilder.navigate_to_page`: Abstract method for navigating to a page.
+          - `LegislativeSessionLinkBuilder.get_links`: Abstract method for getting links.
 
 
 - ### Scrapers
