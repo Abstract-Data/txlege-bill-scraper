@@ -146,9 +146,7 @@ class BillDetailScraper(DetailScrapingInterface):
                         'present_not_voting': int(pnv.group(1)) if pnv else 0,
                         'absent': int(absent.group(1)) if absent else 0
                     }
-                    (cls.links
-                    .committees[_committee_id]
-                    .committee_votes[bill.bill_number]) = CommitteeVote(**_data)
+                    cls.links.committees[_committee_id].committee_votes[bill.bill_number] = CommitteeVote(**_data)
                 # committee_info.setdefault(
                 #         'committee_votes', {
                 #         'ayes': int(ayes.group(1)) if ayes else 0,
@@ -272,10 +270,11 @@ class BillDetailScraper(DetailScrapingInterface):
         actions = []
         actions_tab_url = bill.bill_url.__str__().replace("History.aspx", "Actions.aspx")
         soup = await cls.fetch_with_retries(client=client, url=actions_tab_url)
+        if not soup:
+            return actions
         tables = soup.find_all("form")[1]
         actions_table = tables.find_all("table")[1]
         rows = actions_table.find_all("tr")[1:]
-        row_data = {}
         for row in rows:
             cells = row.find_all("td")
             if len(cells) >= 3:
@@ -403,7 +402,7 @@ class BillDetailScraper(DetailScrapingInterface):
                     if counter % 250 == 0:
                         print(f"Processed {counter} bills")
                 except Exception as e:
-                    logfire.error(f"Failed to process {bill.bill_number}: {e}")
+                    logfire.error(f"Failed to process {bill.bill_id}: {e}")
                 return {bill.bill_number: bill}
 
         tasks = [asyncio.create_task(get_individual_bill(m)) for m in bills.values()]
