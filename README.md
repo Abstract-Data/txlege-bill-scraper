@@ -6,7 +6,7 @@ This repository contains the code to scrape the Texas Legislature website for bi
 The code provides two interfaces for scraping the Texas Legislature website:
 
   - ### Link Builders  
-  The link builders interface provides functions to generate the URLs for the Texas Legislature website. The functions generate URLs for the bill search page, the bill text page, and the bill history page. The functions take parameters such as the bill number, session, and chamber to generate the URLs.
+    The link builders interface provides functions to generate the URLs for the Texas Legislature website. The functions generate URLs for the bill search page, the bill text page, and the bill history page. The functions take parameters such as the bill number, session, and chamber to generate the URLs.
 
     - #### Bases  
     This script defines an abstract base class and several utility functions to facilitate the scraping of legislative session data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping), `pydantic` for data validation, and `selenium` for web scraping. The script includes the following key components:
