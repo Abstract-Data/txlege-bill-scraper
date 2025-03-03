@@ -13,17 +13,14 @@ from selenium.webdriver.support import expected_conditions as EC
 
 # from txlege_bill_scraper.protocols import ChamberTuple, TypePrefix
 # from txlege_bill_scraper.factories import bills as BILL_FACTORY
-from txlege_bill_scraper.build_logger import LogFireLogger
+from protocols import TLO_URLS
 from models.bills import TXLegeBill
-
-from txlege_bill_scraper.protocols import TLO_URLS
 from .bases import LegislativeSessionLinkBuilder
 
 class BillListInterface(LegislativeSessionLinkBuilder):
     _response: httpx.Response = None
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("BillListInterface.navigate_to_page")
     def navigate_to_page(cls, *args, **kwargs) -> Self:
         _chamber = cls.chamber
         _lege_session_num = cls.legislative_session
@@ -60,35 +57,9 @@ class BillListInterface(LegislativeSessionLinkBuilder):
                     By.LINK_TEXT, FILED_BILL_REF
                 ).get_attribute("href")
                 D_.get(filed_house_bills)
-            #
-            # W_.until(EC.element_to_be_clickable((By.LINK_TEXT, FILED_BILL_REF)))
-            #
-            # filed_house_bills = D_.find_element(
-            #     By.LINK_TEXT, FILED_BILL_REF
-            # ).get_attribute("href")
-            # leg_sess = parse_qs(urlparse(filed_house_bills).query).get("LegSess", [""])[
-            #     0
-            # ]
-            #
-            # D_.get(filed_house_bills.replace(leg_sess, _lege_session_num))
-            # W_.until(EC.element_to_be_clickable((By.TAG_NAME, "table")))
-
-    # @staticmethod
-    # def _extract_bill_link(table_element: WebElement) -> Tuple[str, str] | None:
-    #     """Extract bill number and URL from table element"""
-    #     try:
-    #         link = table_element.find_element(
-    #             By.CSS_SELECTOR, "tr:first-child td:first-child a"
-    #         )
-    #         return link.text.strip() if link else None, link.get_attribute(
-    #             "href"
-    #         ) if link else None
-    #     except NoSuchElementException:
-    #         return None
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("BillListInterface.get_links")
-    def get_links(cls) -> Dict[str, Dict[str, str]]:
+    def get_links(cls) -> Dict[str, TXLegeBill]:
         if cls._use_scrape_fallback:
             with super().driver_and_wait() as (D_, W_):
                 W_.until(

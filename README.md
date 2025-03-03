@@ -2,14 +2,14 @@
 This repository contains the code to scrape the Texas Legislature website for bill information. The code is written in Python and uses the BeautifulSoup library to scrape the website. The code is designed to scrape the bill information for the current legislative session.
 
 
-## Interfaces
+## Interfaces  
 The code provides two interfaces for scraping the Texas Legislature website:
 
   - ### Link Builders  
     The link builders interface provides functions to generate the URLs for the Texas Legislature website. The functions generate URLs for the bill search page, the bill text page, and the bill history page. The functions take parameters such as the bill number, session, and chamber to generate the URLs.
 
     - #### Bases  
-    This script defines an abstract base class and several utility functions to facilitate the scraping of legislative session data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping), `pydantic` for data validation, and `selenium` for web scraping. The script includes the following key components:
+      This script defines an abstract base class and several utility functions to facilitate the scraping of legislative session data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping), `pydantic` for data validation, and `selenium` for web scraping. The script includes the following key components:
       
       - **Utility Functions**:
         - `get_link`: Retrieves the URL of a link element based on its text.
@@ -33,64 +33,97 @@ The code provides two interfaces for scraping the Texas Legislature website:
           - `LegislativeSessionLinkBuilder.fetch`: Fetches data by navigating to a page and getting links.
           - `LegislativeSessionLinkBuilder.navigate_to_page`: Abstract method for navigating to a page.
           - `LegislativeSessionLinkBuilder.get_links`: Abstract method for getting links.
+    - ### BillListInterface
+
+      Defines a class to facilitate the scraping of bill list data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping), `httpx` for HTTP requests, `BeautifulSoup` for HTML parsing, and `selenium` for web scraping. The script includes the following key components:
+
+      - **Class**:
+        - `BillListInterface`: Inherits from `LegislativeSessionLinkBuilder` and provides methods to navigate to the bill list page and extract bill links.
+
+      - **Methods**:
+        - `BillListInterface.navigate_to_page`: Navigates to the bill list page using either HTTP requests or web scraping as a fallback.
+        - `BillListInterface.get_links`: Extracts bill links from the page source and returns them as a dictionary.
+
+      These components work together to scrape, parse, and store bill list data from the Texas Legislature website.  
+
+
+    - ### CommitteeInterface
+
+      Defines a class to facilitate the scraping of committee data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping), `BeautifulSoup` for HTML parsing, and `selenium` for web scraping. The script includes the following key components:
+
+      - **Class**:
+        - `CommitteeInterface`: Inherits from `LegislativeSessionLinkBuilder` and provides methods to navigate to the committee page and extract committee links.
+
+      - **Methods**:
+        - `CommitteeInterface.navigate_to_page`: Navigates to the committee page using web scraping.
+        - `CommitteeInterface.get_links`: Extracts committee links from the page source and returns them as a dictionary.  
+
+    - ### MemberInterface  
+      This script defines a class to facilitate the scraping of member list data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping), `BeautifulSoup` for HTML parsing, and `selenium` for web scraping. The script includes the following key components:
+
+      - **Class**:
+        - `MemberListInterface`: Inherits from `LegislativeSessionLinkBuilder` and provides methods to navigate to the member list page and extract member links.
+
+      - **Methods**:
+        - `MemberListInterface.navigate_to_page`: Navigates to the member list page using web scraping.
+        - `MemberListInterface.get_links`: Extracts member links from the page source and returns them as a dictionary.
+
 
 
 - ### Scrapers
-The scrapers interface provides functions to scrape the Texas Legislature website for bill information. The functions scrape the bill information from the bill search page, the bill text page, and the bill history page. The functions take parameters such as the bill number, session, and chamber to scrape the bill information.
+  The scrapers interface provides functions to scrape the Texas Legislature website for bill information. The functions scrape the bill information from the bill search page, the bill text page, and the bill history page. The functions take parameters such as the bill number, session, and chamber to scrape the bill information.
 
-## Models
-The code provides models to represent the bill information scraped from the Texas Legislature website. The models include classes for the bill, bill text, and bill history. The classes have attributes to store the relevant information such as the bill number, session, chamber, title, text, and history.
+## Models  
+The code provides models to represent the bill information scraped from the Texas Legislature website. The models include classes for the bill, bill text, and bill history. The classes have attributes to store the relevant information such as the bill number, session, chamber, title, text, and history.  
+
 ### Model Types
 - ### Bases
-The base models provide the base classes for the bill, bill text, and bill history. The base classes have attributes to store the relevant information such as the bill number, session, chamber, title, text, and history.
-The `TexasLegislatureModelBase` class is the base class for all the models. It provides the base configuration for the models, such as allowing arbitrary types, validating assignments, and using enum values.
-```python
-class TexasLegislatureModelBase(SQLModel):
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True,
-        validate_assignment=True,
-        use_enum_values=True,
-    )
-```
+  The base models provide the base classes for the bill, bill text, and bill history. The base classes have attributes to store the relevant information such as the bill number, session, chamber, title, text, and history.
+  The `TexasLegislatureModelBase` class is the base class for all the models. It provides the base configuration for the models, such as allowing arbitrary types, validating assignments, and using enum values.
+  ```python
+  class TexasLegislatureModelBase(SQLModel):
+      model_config = ConfigDict(
+          arbitrary_types_allowed=True,
+          validate_assignment=True,
+          use_enum_values=True,
+      )
+  ```
 - ### Bills
-### Script Description
+  Defines several classes and functions to model and process legislative bill data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping) and `pydantic` for data validation. The script includes the following key components:
 
-This script defines several classes and functions to model and process legislative bill data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping) and `pydantic` for data validation. The script includes the following key components:
+  - **Utility Functions**:
+    - `get_element_text`: Extracts and cleans text from HTML elements.
+    - `format_datetime`: Parses and formats date strings from HTML elements.
+    - `check_url`: Ensures URLs use the HTTPS scheme.
 
-- **Utility Functions**:
-  - `get_element_text`: Extracts and cleans text from HTML elements.
-  - `format_datetime`: Parses and formats date strings from HTML elements.
-  - `check_url`: Ensures URLs use the HTTPS scheme.
+  - **Annotated Types**:
+    - `HttpsValidatedURL`: A URL type that ensures HTTPS scheme.
+    - `WebElementText`: A type for extracting text from HTML elements.
+    - `WebElementDate`: A type for parsing dates from HTML elements.
 
-- **Annotated Types**:
-  - `HttpsValidatedURL`: A URL type that ensures HTTPS scheme.
-  - `WebElementText`: A type for extracting text from HTML elements.
-  - `WebElementDate`: A type for parsing dates from HTML elements.
+  - **Data Models**:
+    - `BillDoc`: Represents a document related to a bill.
+    - `BillCompanion`: Represents a companion bill.
+    - `BillAmendment`: Represents an amendment to a bill.
+    - `BillVersion`: Represents a version of a bill.
+    - `BillAction`: Represents an action taken on a bill.
+    - `TXLegeBill`: Represents a legislative bill with various related data such as versions, amendments, and actions.
 
-- **Data Models**:
-  - `BillDoc`: Represents a document related to a bill.
-  - `BillCompanion`: Represents a companion bill.
-  - `BillAmendment`: Represents an amendment to a bill.
-  - `BillVersion`: Represents a version of a bill.
-  - `BillAction`: Represents an action taken on a bill.
-  - `TXLegeBill`: Represents a legislative bill with various related data such as versions, amendments, and actions.
+  - **Methods**:
+    - `TXLegeBill.create_ids`: Generates unique IDs for the bill and its related entities.
 
-- **Methods**:
-  - `TXLegeBill.create_ids`: Generates unique IDs for the bill and its related entities.
-
-These components work together to scrape, parse, and store legislative bill data from the Texas Legislature website. The script is designed to handle various aspects of bill data, including documents, amendments, versions, and actions, ensuring data integrity and consistency.
+  These components work together to scrape, parse, and store legislative bill data from the Texas Legislature website. The script is designed to handle various aspects of bill data, including documents, amendments, versions, and actions.
 - ### Committees
-### Script Description
 
-This script defines several classes to model and process committee vote data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping). The script includes the following key components:
+  Defines several classes to model and process committee vote data for the Texas Legislature. It uses the `SQLModel` library for ORM (Object-Relational Mapping). The script includes the following key components:
 
-- **Data Models**:
-  - `CommitteeVote`: Represents a vote within a committee on a specific bill.
-  - `CommitteeDetails`: Represents the details of a committee, including its votes and bills.
+  - **Data Models**:
+    - `CommitteeVote`: Represents a vote within a committee on a specific bill.
+    - `CommitteeDetails`: Represents the details of a committee, including its votes and bills.
 
-- **Methods**:
-  - `CommitteeVote.create_id`: Generates a unique ID for the committee vote.
-  - `CommitteeDetails.__hash__`: Provides a hash function for the committee details.
-  - `CommitteeDetails.__repr__`: Provides a string representation for the committee details.
+  - **Methods**:
+    - `CommitteeVote.create_id`: Generates a unique ID for the committee vote.
+    - `CommitteeDetails.__hash__`: Provides a hash function for the committee details.
+    - `CommitteeDetails.__repr__`: Provides a string representation for the committee details.
 
-These components work together to model and store committee vote data from the Texas Legislature. The script is designed to handle various aspects of committee data, ensuring data integrity and consistency.
+  These components store committee vote data from the Texas Legislature.

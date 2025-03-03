@@ -1,22 +1,31 @@
 from __future__ import annotations
 
 from asyncio import Future
-from typing import Self, Dict, Any
+from typing import Self, Dict, Any, List
 import httpx
 import asyncio
 from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
-from .bases import DetailScrapingInterface
 
+from protocols import HttpsValidatedURL
+from .bases import DetailScrapingInterface
+from models.members import MemberDetails, MemberAddress, MemberBillTypeURLs
+
+
+#TODO: Create way to assign member ID to type of bill condition they're involved with.
+# May need to create a new model for BillInvolvement and an enum for Involvement Type.
 
 class MemberDetailScraper(DetailScrapingInterface):
+
+    def __init__(self):
+        super().__init__()
 
     def build_detail(self) -> Self:
         pass
 
     @classmethod
-    async def get_member_info(cls, client: httpx.AsyncClient, member: Dict) -> dict:
-        request = await client.get(member['member_url'])
+    async def get_member_info(cls, client: httpx.AsyncClient, member: MemberDetails) -> MemberDetails:
+        request = await client.get(member.member_url.__str__())
         soup = BeautifulSoup(request.text, 'html.parser')
         # Header Cleanup
         _remove_information_pfx = f"Information for Rep."
@@ -24,22 +33,30 @@ class MemberDetailScraper(DetailScrapingInterface):
         _member_header_text = _member_header.text.replace(_remove_information_pfx, "").strip()
 
         # Name Cleanup
-        member["last_name"] = member["name"]
-        member["first_name"] = _member_header_text.replace(member["last_name"], "").strip()
-        if "first_name" in member and "last_name" in member:
-            del member["name"]
+        member.last_name = member.name
+        member.first_name = _member_header_text.replace(member.last_name, "").strip()
+        if member.first_name and member.last_name:
+            del member.name
 
         # Contact Information Extraction
         _contact_info = soup.find(id="contactInfo")
         if _contact_info:
-            member["district"] = _contact_info.find(id="lblDistrict").text.strip()
-            member["capitol_office"] = _contact_info.find(id="lblCapitolOffice").text.strip()
-            member["capitol_address1"] = _contact_info.find(id="lblCapitolAddress1").text.strip()
-            member["capitol_address2"] = _contact_info.find(id="lblCapitolAddress2").text.strip()
-            member["capitol_phone"] = _contact_info.find(id="lblCapitolPhone").text.strip()
-            member["district_address1"] = _contact_info.find(id="lblDistrictAddress1").text.strip()
-            member["district_address2"] = _contact_info.find(id="lblDistrictAddress2").text.strip()
-            member["district_phone"] = _contact_info.find(id="lblDistrictPhone").text.strip()
+            member.member_district = _contact_info.find(id="lblDistrict").text.strip()
+            member.member_capitol_office = _contact_info.find(id="lblCapitolOffice").text.strip()
+            _capitol_address = {
+                'address1': _contact_info.find(id="lblCapitolAddress1").text.strip(),
+                'address2': _contact_info.find(id="lblCapitolAddress2").text.strip(),
+                'phone': _contact_info.find(id="lblCapitolPhone").text.strip()
+            }
+
+            _district_address = {
+                'address1': _contact_info.find(id="lblDistrictAddress1").text.strip(),
+                'address2': _contact_info.find(id="lblDistrictAddress2").text.strip(),
+                'phone': _contact_info.find(id="lblDistrictPhone").text.strip()
+            }
+
+            member.district_address = MemberAddress(**_district_address) if any(_district_address.values()) else None
+            member.capitol_address = MemberAddress(**_capitol_address) if any(_capitol_address.values()) else None
 
         # Legislative Information Extraction
         _legislative_info = soup.find(id="legislativeInformation")
@@ -50,18 +67,19 @@ class MemberDetailScraper(DetailScrapingInterface):
                     cls.links._base_url + x['href'].replace('..', '')
                     for x in _legislative_links if txt in x.text
                 ), None)
-            member["bills_authored_url"] = get_url_("Bills Authored")
-            member["bills_sponsored_url"] = get_url_("Bills Sponsored")
-            member["bills_coauthored_url"] = get_url_("Bills Coauthored")
-            member["bills_cosponsored_url"] = get_url_("Bills Cosponsored")
-            member["amendments_authored_url"] = get_url_("Amendments Authored")
+            member.bill_urls = MemberBillTypeURLs(
+                authored_url=get_url_("Bills Authored"),
+                sponsored_url=get_url_("Bills Sponsored"),
+                coauthored_url=get_url_("Bills Coauthored"),
+                cosponsored_url=get_url_("Bills Cosponsored"),
+                amendments_authored_url=get_url_("Amendments Authored")
+            )
         return member
 
     @classmethod
-    async def get_member_bill_urls(cls, client: httpx.AsyncClient, member: Dict) -> Dict | None:
-        bill_urls = {k: v for k, v in member.items() if k.endswith("_url") and k.startswith("bills")}
+    async def get_member_bill_urls(cls, client: httpx.AsyncClient, member: MemberDetails) -> MemberDetails | None:
         bill_type_list = {}
-        for _type, url in bill_urls.items():
+        for _type, url in member.bill_urls.model_dump().items():
             response = await client.get(url)
             soup = BeautifulSoup(response.content, 'html.parser')
             _bill_table = soup.find_all('table')
@@ -77,17 +95,17 @@ class MemberDetailScraper(DetailScrapingInterface):
                 except KeyError:
                     continue
                 _type_dict[_bill_num] = _bill_url
-        member['bills'] = bill_type_list
+        member.bills = bill_type_list
         return member
 
     @classmethod
     async def fetch(
             cls,
-            members: Dict[str, Dict[str, str]],
+            members: Dict[str, MemberDetails],
             _client: httpx.AsyncClient,
-            _sem: asyncio.Semaphore) -> Dict[str, Dict[str, str]]:
+            _sem: asyncio.Semaphore) -> List[MemberDetails]:
         counter = 0
-        async def get_individual_member(_m: Dict[str, str]):
+        async def get_individual_member(_m: MemberDetails):
             async with _sem:
                 _m = await cls.get_member_info(_client, _m)
                 _m = await cls.get_member_bill_urls(_client, _m)
@@ -97,7 +115,7 @@ class MemberDetailScraper(DetailScrapingInterface):
                     print(f"Processed {counter} members")
                 return _m
         tasks = [
-            asyncio.create_task(get_individual_member(dict(m))) for m in members.values()
+            asyncio.create_task(get_individual_member(m)) for m in members.values()
         ]
         results = await asyncio.gather(*tasks)
         return results

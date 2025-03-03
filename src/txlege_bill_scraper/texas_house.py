@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 from protocols import HOUSE
 
 LEGISLATIVE_SESSION: SessionDetails = SessionDetails(
-    lege_session="87", lege_session_desc="R"
+    lege_session="89", lege_session_desc="R"
 )
 
 
@@ -17,8 +17,8 @@ house_bills = SessionDetailInterface(
 # SQLModel.metadata.create_all(engine)
 house_bills.links.fetch()
 house_bills.fetch()
-amendments = [x for x in house_bills.links.bills.values() if x.amendments]
-test = house_bills.links.bills.get("HB1")
+# amendments = [x for x in house_bills.links.bills.values() if x.amendments]
+# test = house_bills.links.bills.get("HB1")
 # co_authors = [x['amendment_coauthors'] for x in house_bills.links.bills.values() if x.get('amendment_coauthors')]
 # test = next(house_bills.bills)
 

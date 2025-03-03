@@ -1,19 +1,19 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Any, Generator, Self
+from dataclasses import dataclass
+from typing import Optional, List, Dict, Self, ClassVar
 import re
 import httpx
 import asyncio
 from icecream import ic
-from asyncio import Future
-from urllib.parse import parse_qs, urlparse, urljoin
+from urllib.parse import parse_qs, urlparse
 from datetime import datetime
+import functools
 
 import logfire
-from bs4 import BeautifulSoup, Tag as BeautifulSoupTag
+from bs4 import BeautifulSoup
 
-from txlege_bill_scraper.protocols import ScrapedPageElement, ScrapedPageContainer
 from .bases import DetailScrapingInterface
-from txlege_bill_scraper.models.bills import (
+from models.bills import (
     BillDoc,
     TXLegeBill,
     BillAmendment,
@@ -23,16 +23,30 @@ from txlege_bill_scraper.models.bills import (
     BillDocDescription,
     CommitteeDetails,
     CommitteeVote,
+    CommitteeBill
 )
-from build_logger import LogFireLogger
 from pydantic import ValidationError
+
+@dataclass
+class BillDetailComponents:
+    bills: ClassVar[List[TXLegeBill]] = []
+    versions: ClassVar[List[BillVersion]] = []
+    companions: ClassVar[List[BillCompanion]] = []
+    actions: ClassVar[List[BillAction]] = []
+    amendments: ClassVar[List[BillAmendment]] = []
+    committees: ClassVar[List] = []
+    committee_bills: ClassVar[List[CommitteeBill]] = []
+    committee_votes: ClassVar[List[CommitteeVote]] = []
+    documents: ClassVar[List[BillDoc]] = []
 
 
 class BillDetailScraper(DetailScrapingInterface):
+    components: ClassVar[BillDetailComponents] = BillDetailComponents
+
     @classmethod
     async def get_basic_details(
         cls, client: httpx.AsyncClient, bill: TXLegeBill
-    ) -> TXLegeBill:
+    ) -> TXLegeBill | None:
         try:
             response = await client.get(bill.bill_url.__str__())
             response.raise_for_status()
@@ -71,8 +85,9 @@ class BillDetailScraper(DetailScrapingInterface):
                 companion_link = companions.find("a")
                 if companion_link:
                     href = companion_link.get("href")
-                    bill.companions.append(
+                    cls.components.companions.append(
                         BillCompanion(
+                            bill_id=bill.id,
                             companion_url=cls.build_url(href),
                             companion_bill_number=companion_link.text.replace(
                                 " ", ""
@@ -80,8 +95,6 @@ class BillDetailScraper(DetailScrapingInterface):
                             companion_session_id=cls.links.lege_session_id,
                         )
                     )
-                else:
-                    bill.companions = None
 
             house_committee = await cls._get_committee_information(
                 page_data=soup, bill=bill, committee_cell_tag="cellComm1"
@@ -90,9 +103,10 @@ class BillDetailScraper(DetailScrapingInterface):
                 page_data=soup, bill=bill, committee_cell_tag="cellComm2"
             )
             if house_committee:
-                bill.committees.append(house_committee)
+                cls.components.committees.append(house_committee)
             if senate_committee:
-                bill.committees.append(senate_committee)
+                cls.components.committees.append(senate_committee)
+            cls.components.bills.append(bill)
             return bill
         except Exception as e:
             if isinstance(e, ValidationError):
@@ -106,7 +120,7 @@ class BillDetailScraper(DetailScrapingInterface):
         page_data: BeautifulSoup,
         bill: TXLegeBill,
         committee_cell_tag: str = "cellComm1",
-    ) -> Optional[str]:
+    ) -> Optional[CommitteeDetails]:
         try:
             # House Committee
             committee_cell = page_data.find(id=f"{committee_cell_tag}Committee")
@@ -120,12 +134,11 @@ class BillDetailScraper(DetailScrapingInterface):
                     raise Exception(
                         f"Committee {_committee_id} not found in committee list"
                     )
-                cls.links.committees[_committee_id].committee_bills.append(
-                    bill.bill_number)
-                # committee_info['committee_chamber'] = "House" if committee_cell_tag.startswith("cellComm1") else "Senate"
-                # committee_info['committee_name'] = committee_link.text.strip()
-                # committee_info['committee_url'] = cls.build_url(committee_link.get('href'))
-                # committee_info['committee_id'] = parse_qs(urlparse(_committee_url).query)["CmteCode"][0]
+                cls.components.committee_bills.append(
+                    CommitteeBill(
+                        committee_id=cls.links.committees[_committee_id].committee_id,
+                        bill_id=bill.id)
+                )
 
                 # Committee Status
                 status_cell = page_data.find(id=f"{committee_cell_tag}Status")
@@ -139,23 +152,17 @@ class BillDetailScraper(DetailScrapingInterface):
                     pnv = re.search(r"Present Not Voting=(\d+)", vote_text)
                     absent = re.search(r"Absent=(\d+)", vote_text)
                     _data = {
-                        'committee_id': _committee_id,
-                        'bill_id': bill.bill_id,
+                        'id': _committee_id,
+                        'committee_id': cls.links.committees[_committee_id].committee_id,
+                        'bill_id': bill.id,
                         'ayes': int(ayes.group(1)) if ayes else 0,
                         'nays': int(nays.group(1)) if nays else 0,
                         'present_not_voting': int(pnv.group(1)) if pnv else 0,
                         'absent': int(absent.group(1)) if absent else 0
                     }
-                    cls.links.committees[_committee_id].committee_votes[bill.bill_number] = CommitteeVote(**_data)
-                # committee_info.setdefault(
-                #         'committee_votes', {
-                #         'ayes': int(ayes.group(1)) if ayes else 0,
-                #         'nays': int(nays.group(1)) if nays else 0,
-                #         'present_not_voting': int(pnv.group(1)) if pnv else 0,
-                #         'absent': int(absent.group(1)) if absent else 0
-                #     }
-                # )
-                return _committee_id
+                    cls.components.committee_votes.append(CommitteeVote(**_data))
+                    #TODO: Check to ensure Committee Votes are being appended to the respective committee.
+                return cls.links.committees[_committee_id]
             # TODO: Turn 'Bills Voted On' into a list instead of a dict.
         except Exception:
             committee_info = None
@@ -163,115 +170,70 @@ class BillDetailScraper(DetailScrapingInterface):
     @classmethod
     async def parse_bill_text_table(
         cls, client: httpx.AsyncClient, bill: TXLegeBill
-    ) -> Dict[str, BillVersion]:
+    ) -> TXLegeBill:
         versions_url = bill.bill_url.__str__().replace("History.aspx", "Text.aspx")
         text_tab_url = versions_url.__str__()
-        max_retries = 5
-        retries = 0
-        versions = {}
         soup = await cls.fetch_with_retries(client=client, url=text_tab_url)
         if not soup:
-            return versions
+            return bill
         try:
             tables = soup.find_all("form")[1]
 
         except IndexError:
             logfire.warn("No bill versions found for {}".format(text_tab_url))
-            return versions
+            return bill
 
         bill_table = tables.find_next("table")
         rows = bill_table.find_all("tr")[1:]
+        create_bill_doc = functools.partial(cls.create_bill_doc, bill=bill)
         for row in rows:
             cells = row.find_all("td")
             if len(cells) >= 6:
                 version_info = BillVersion(
+                    bill_id=bill.id,
                     version=cells[0].text.strip(),
                 )
+                create_bill_doc = functools.partial(create_bill_doc, version_info=version_info)
                 # Process Bill documents (cell 1)
                 bill_links = cells[1].find_all("a")
-                for link in bill_links:
-                    href = link.get("href")
-                    if href:
-                        doc_type = cls.get_document_type(href)
-                        version_info.bill_docs.append(
-                            BillDoc(
-                                version=version_info.version,
-                                doc_url=cls.build_url(href),
-                                doc_type=doc_type,
-                                doc_description=BillDocDescription.BILL_TEXT,
-                            )
-                        )
+                cls.components.documents.extend(
+                    create_bill_doc(links=bill_links, doc_type=BillDocDescription.BILL_TEXT)
+                )
 
                 # Process Fiscal Note documents (cell 2)
                 fiscal_links = cells[2].find_all("a")
-                for link in fiscal_links:
-                    href = link.get("href")
-                    if href:
-                        doc_type = cls.get_document_type(href)
-                        version_info.fiscal_note_docs.append(
-                            BillDoc(
-                                version=version_info.version,
-                                doc_url=cls.build_url(href),
-                                doc_type=doc_type,
-                                doc_description=BillDocDescription.FISCAL_NOTE,
-                            )
-                        )
+                cls.components.documents.extend(
+                    create_bill_doc(links=fiscal_links, doc_type=BillDocDescription.FISCAL_NOTE)
+                )
 
                 # Process Analysis documents (cell 3)
                 analysis_links = cells[3].find_all("a")
-                for link in analysis_links:
-                    href = link.get("href")
-                    if href:
-                        doc_type = cls.get_document_type(href)
-                        version_info.analysis_docs.append(
-                            BillDoc(
-                                versions=version_info.version,
-                                doc_url=cls.build_url(href),
-                                doc_type=doc_type,
-                                doc_description=BillDocDescription.ANALYSIS,
-                            )
-                        )
+                cls.components.documents.extend(
+                    create_bill_doc(links=analysis_links, doc_type=BillDocDescription.ANALYSIS)
+                )
 
                 # Process Witness List documents (cell 4)
                 witness_links = cells[4].find_all("a")
-                for link in witness_links:
-                    href = link.get("href")
-                    if href:
-                        doc_type = cls.get_document_type(href)
-                        version_info.witness_list_docs.append(
-                            BillDoc(
-                                version=version_info.version,
-                                doc_url=cls.build_url(href),
-                                doc_type=doc_type,
-                                doc_description=BillDocDescription.WITNESS_LIST,
-                            )
-                        )
+                cls.components.documents.extend(
+                    create_bill_doc(links=witness_links, doc_type=BillDocDescription.WITNESS_LIST)
+                )
 
                 # Process Committee Summary documents (cell 5)
                 summary_links = cells[5].find_all("a")
-                for link in summary_links:
-                    href = link.get("href")
-                    if href:
-                        doc_type = cls.get_document_type(href)
-                        version_info.committee_summary_docs.append(
-                            BillDoc(
-                                version=version_info.version,
-                                doc_url=cls.build_url(href),
-                                doc_type=doc_type,
-                                doc_description=BillDocDescription.SUMMARY,
-                            )
-                        )
+                cls.components.documents.extend(
+                    create_bill_doc(links=summary_links, doc_type=BillDocDescription.SUMMARY)
+                )
 
-                versions[version_info.version] = version_info
-        return versions
+                cls.components.versions.append(version_info)
+        return bill
 
     @classmethod
-    async def parse_bill_actions_table(cls, client: httpx.AsyncClient, bill: TXLegeBill) -> List[BillAction]:
+    async def parse_bill_actions_table(cls, client: httpx.AsyncClient, bill: TXLegeBill) -> TXLegeBill:
         actions = []
         actions_tab_url = bill.bill_url.__str__().replace("History.aspx", "Actions.aspx")
         soup = await cls.fetch_with_retries(client=client, url=actions_tab_url)
         if not soup:
-            return actions
+            return bill
         tables = soup.find_all("form")[1]
         actions_table = tables.find_all("table")[1]
         rows = actions_table.find_all("tr")[1:]
@@ -280,7 +242,7 @@ class BillDetailScraper(DetailScrapingInterface):
             if len(cells) >= 3:
                 _data = BillAction(
                     **{
-                        'bill_id': bill.bill_id,
+                        'bill_id': bill.id,
                         'tier': cells[0].text.strip(),
                         'description': cells[1].text.strip(),
                         'description_url': cells[1].find("a").get("href") if cells[1].find("a") else None,
@@ -294,15 +256,14 @@ class BillDetailScraper(DetailScrapingInterface):
                         'journal_page': cells[5].text.strip() if len(cells) >= 6 and cells[5].text.strip() else None,
                     }
                 )
-                actions.append(_data)
-        return actions
+                cls.components.actions.append(_data)
+        return bill
 
 
     @classmethod
     async def parse_amendments_table(
         cls, client: httpx.AsyncClient, bill: TXLegeBill
-    ) -> List[BillAmendment]:
-        amendments = []
+    ) -> TXLegeBill:
         amendments_tab_url = (
             bill.bill_url.__str__()
             .replace("History.aspx", "Text.aspx")
@@ -317,12 +278,14 @@ class BillDetailScraper(DetailScrapingInterface):
 
         amendments_table = tables.find_next("table")
         rows = amendments_table.find_all("tr")[1:]
+        _found_amendments = False
         for row in rows:
             cells = row.find_all("td")
+            _found_amendments = True
             _coauthors_link = cells[3].find("a")
             if len(cells) >= 7:
                 amendment_info: BillAmendment = BillAmendment(
-                    bill_number=bill.bill_number,
+                    bill_id=bill.id,
                     chamber=cells[0].text.strip().split()[0],
                     reading=cells[0].text.strip().split()[1],
                     number=cells[1].text.strip(),
@@ -337,8 +300,10 @@ class BillDetailScraper(DetailScrapingInterface):
                     href = link.get("href")
                     if href:
                         doc_type = cls.get_document_type(href.lower())
-                        amendment_info.docs.append(
+                        cls.components.documents.append(
                             BillDoc(
+                                bill_id=amendment_info.bill_id,
+                                amendment_id=amendment_info.id,
                                 doc_url=cls.build_url(href),
                                 doc_type=doc_type,
                                 doc_description=BillDocDescription.AMENDMENT,
@@ -366,45 +331,45 @@ class BillDetailScraper(DetailScrapingInterface):
                         ]
                 else:
                     amendment_info.co_authors = cells[3].text.strip()
-                amendments.append(amendment_info)
-        return amendments
+                cls.components.amendments.append(amendment_info)
+        return bill
 
     @classmethod
     async def build_detail(cls, bills) -> Self:
         pass
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("BillDetailInterface.fetch")
+    @logfire.instrument()
     async def fetch(
         cls,
         bills: Dict[str, TXLegeBill],
         _client: httpx.AsyncClient,
         _sem: asyncio.Semaphore,
-    ) -> Dict[str, TXLegeBill]:
+    ) -> List[TXLegeBill]:
         counter = 0
 
-        async def get_individual_bill(bill: TXLegeBill) -> Dict[str, TXLegeBill]:
+        async def get_individual_bill(bill: TXLegeBill) -> TXLegeBill:
             async with _sem:
                 try:
                     bill = await cls.get_basic_details(client=_client, bill=bill)
-                    bill.versions = await cls.parse_bill_text_table(
+                    bill = await cls.parse_bill_text_table(
                         client=_client, bill=bill
                     )
-                    bill.actions = await cls.parse_bill_actions_table(
+                    bill = await cls.parse_bill_actions_table(
                         client=_client, bill=bill
                     )
-                    bill.amendments = await cls.parse_amendments_table(
+                    bill = await cls.parse_amendments_table(
                         client=_client, bill=bill
                     )
-                    bill.create_ids()
                     nonlocal counter
                     counter += 1
                     if counter % 250 == 0:
                         print(f"Processed {counter} bills")
                 except Exception as e:
-                    logfire.error(f"Failed to process {bill.bill_id}: {e}")
-                return {bill.bill_number: bill}
+                    logfire.error(f"Failed to process {bill}: {e}")
+                return bill
 
-        tasks = [asyncio.create_task(get_individual_bill(m)) for m in bills.values()]
-        results = await asyncio.gather(*tasks)
-        return {k: v for d in results for k, v in d.items()}
+        with logfire.span("Getting individual bills"):
+            tasks = [asyncio.create_task(get_individual_bill(m)) for m in bills.values()]
+            results = await asyncio.gather(*tasks)
+        return results

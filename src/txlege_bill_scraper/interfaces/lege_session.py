@@ -3,28 +3,26 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import ClassVar, Dict, Any, Optional, Generator, Union, Self
 import asyncio
+
+import logfire
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 import httpx
 
-from txlege_bill_scraper.interfaces.link_builders import (
+from interfaces.link_builders import (
     LegislativeSessionLinkBuilder,
     BillListInterface,
     MemberListInterface,
     CommitteeInterface,
 )
-from txlege_bill_scraper.protocols import ChamberTuple, SessionDetails, BillDocFileType
+from protocols import ChamberTuple, SessionDetails, BillDocFileType
 from interfaces.scrapers import (
     DetailScrapingInterface,
     MemberDetailScraper,
     BillDetailScraper,
 )
-from txlege_bill_scraper.models.bills import TXLegeBill, CommitteeDetails
-from txlege_bill_scraper.build_logger import LogFireLogger
+from models.bills import TXLegeBill, CommitteeDetails
 
-from .bill_details import BillDetailInterface
-
-logfire_context = LogFireLogger.logfire_context
 
 OutputGenerator = Union[
     Dict[str, Dict[str, Any]],
@@ -56,7 +54,6 @@ class SessionInterfaceBase(LegislativeSessionLinkBuilder):
     def get_links(self):
         pass
 
-    @LogFireLogger.logfire_method_decorator("SessionInterface.navigate_to_page")
     def navigate_to_page(self, *args, **kwargs):
         with self.driver_and_wait() as (D_, W_):
             D_.get(self._base_url)
@@ -65,21 +62,25 @@ class SessionInterfaceBase(LegislativeSessionLinkBuilder):
             ).click()
             W_.until(lambda _: D_.find_element(By.TAG_NAME, "body")).is_displayed()
 
+    @logfire.instrument()
     def build_bill_list(self) -> Self:
         self.navigate_to_page()
         self.bills = BillListInterface.fetch()
         return self
 
+    @logfire.instrument()
     def build_member_list(self) -> Self:
         self.navigate_to_page()
         self.members = MemberListInterface.fetch()
         return self
 
+    @logfire.instrument()
     def build_committee_list(self) -> Self:
         self.navigate_to_page()
         self.committees = CommitteeInterface.fetch()
         return Self
 
+    @logfire.instrument()
     def build_bill_details(self) -> Self:
         if not self.bills:
             self.build_bill_list()
@@ -87,14 +88,15 @@ class SessionInterfaceBase(LegislativeSessionLinkBuilder):
         self.bills = BillListInterface.fetch()
         return self
 
+    @logfire.instrument()
     def fetch(self):
         self.build_bill_list()
         self.build_member_list()
         self.build_committee_list()
 
-
 class SessionDetailInterface(DetailScrapingInterface):
     links: Optional[SessionInterfaceBase] = None
+    bills: BillDetailScraper.components = BillDetailScraper.components
 
     def __init__(self, chamber: ChamberTuple, legislative_session: str | int):
         self.links = SessionInterfaceBase(chamber, legislative_session)
@@ -105,14 +107,14 @@ class SessionDetailInterface(DetailScrapingInterface):
         async with httpx.AsyncClient(
             timeout=self.timeout, limits=self.limits
         ) as client:
-            member_task = asyncio.create_task(
-                MemberDetailScraper.fetch(
-                    self.links.members, _client=client, _sem=self.semaphore
-                )
-            )
             bill_task = asyncio.create_task(
                 BillDetailScraper.fetch(
                     self.links.bills, _client=client, _sem=self.semaphore
+                )
+            )
+            member_task = asyncio.create_task(
+                MemberDetailScraper.fetch(
+                    self.links.members, _client=client, _sem=self.semaphore
                 )
             )
 
@@ -120,6 +122,7 @@ class SessionDetailInterface(DetailScrapingInterface):
             self.links.bills = await bill_task
         return self
 
+    @logfire.instrument()
     def fetch(self):
         asyncio.run(self.build_detail())
         return self

@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 import asyncio
 from dataclasses import dataclass
 import abc
-from typing import Self, ClassVar
+from typing import Self, ClassVar, List
 import httpx
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, ResultSet as BeautifulSoupResultSet
 import logfire
 
-from txlege_bill_scraper.protocols import TLO_URLS, BillDocFileType
+from models.bills import TXLegeBill, BillVersion, BillDoc, BillDocDescription
+from protocols import TLO_URLS, BillDocFileType
 from interfaces.link_builders import LegislativeSessionLinkBuilder
 
 @dataclass
@@ -19,7 +22,7 @@ class DetailScrapingInterface(abc.ABC):
 
     @classmethod
     def build_url(cls, href: str) -> str:
-        new_url = urljoin(cls.links._base_url, href.replace('..', ''))
+        new_url = urljoin(cls.links._base_url, href.replace('..', ''))  #type: ignore
         return new_url
 
     @classmethod
@@ -41,7 +44,7 @@ class DetailScrapingInterface(abc.ABC):
         return None
 
     @classmethod
-    def get_document_type(cls, href: str) -> BillDocFileType:
+    def get_document_type(cls, href: str) -> BillDocFileType | None:
         """Determine document type based on URL and image alt text"""
         if '.pdf' in href:
             return BillDocFileType.PDF
@@ -52,11 +55,51 @@ class DetailScrapingInterface(abc.ABC):
         elif '.txt' in href:
             return BillDocFileType.TEXT
 
+    @classmethod
+    def create_bill_doc(
+            cls,
+            links: BeautifulSoupResultSet,
+            bill: TXLegeBill,
+            version_info: BillVersion,
+            doc_type=BillDocDescription
+    ) -> List[BillDoc]:
+        """
+        Create a list of BillDoc objects from a BeautifulSoup ResultSet of links
+
+        :param links: BeautifulSoupResultSet of links
+        :type links: BeautifulSoupResultSet
+        :param bill: TXLegeBill object
+        :type bill: TXLegeBill
+        :param version_info: BillVersion object
+        :type version_info: BillVersion
+        :param doc_type: Type[BillDocDescription] object
+        :type doc_type: BillDocDescription
+        :return: List of BillDoc objects
+        :rtype: List[BillDoc]
+        """
+        _docs = []
+        for link in links:
+            href = link.get("href")
+            if href:
+                doc_type_finder = cls.get_document_type(href)
+                _docs.append(
+                    BillDoc(
+                        bill_id=bill.id,
+                        version_id=version_info.id,
+                        version=version_info.version,
+                        doc_url=cls.build_url(href),
+                        doc_type=doc_type_finder,
+                        doc_description=doc_type,
+                    )
+                )
+        return _docs
+
 
     @abc.abstractmethod
     def build_detail(self, *args, **kwargs) -> Self:
         ...
 
     @abc.abstractmethod
+    @logfire.instrument()
     def fetch(self, *args, **kwargs) -> Self:
         ...

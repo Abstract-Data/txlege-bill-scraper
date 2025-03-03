@@ -1,17 +1,26 @@
 from __future__ import annotations
-from typing import NamedTuple, Final, Dict, List
+from typing import NamedTuple, Final, Dict, List, Annotated, Optional, Union
 from selenium.webdriver import Chrome as ChromeDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from pathlib import Path
 import tomli
 from bs4 import Tag as BeautifulSoupTag
 from enum import Enum
+from pydantic import BeforeValidator, AfterValidator, PastDate, HttpUrl
+
+from validation_tools import get_element_text, format_datetime, check_url
 
 BrowserDriver: Final = ChromeDriver
 BrowserWait: Final = WebDriverWait
 
 ScrapedPageElement = BeautifulSoupTag
 ScrapedPageContainer = List[ScrapedPageElement]
+
+HttpsValidatedURL = Annotated[Optional[HttpUrl], AfterValidator(check_url)]
+WebElementText = Annotated[
+    Optional[Union[BeautifulSoupTag, str, list]], BeforeValidator(get_element_text)
+]
+WebElementDate = Annotated[Optional[PastDate], BeforeValidator(format_datetime)]
 
 CONFIG: Final[Dict] = tomli.load(open(Path(__file__).parents[0] / "tlo_urls.toml", "rb"))
 

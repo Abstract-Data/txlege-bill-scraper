@@ -17,7 +17,7 @@ import inject
 from inject import Binder, configure_once
 import logfire
 
-from txlege_bill_scraper.protocols import (
+from protocols import (
     BrowserDriver,
     BrowserWait,
     ChamberTuple,
@@ -27,8 +27,11 @@ from txlege_bill_scraper.protocols import (
     ScrapedPageElement,
     ScrapedPageContainer
 )
-from txlege_bill_scraper.driver import BuildWebDriver, DriverAndWaitContext
-from txlege_bill_scraper.build_logger import LogFireLogger
+from driver import BuildWebDriver, DriverAndWaitContext
+
+from models.bills import TXLegeBill
+from models.committees import CommitteeDetails
+
 
 # TODO: Figure out how to get dependency injection to work correctly.
 
@@ -59,9 +62,11 @@ class NonDBModelBase(BaseModel):
 class LegislativeSessionLinkBuilder(abc.ABC):
     chamber: ChamberTuple
     legislative_session: str | int | SessionDetails
-    bills: Dict[str, Dict[str, str]] = field(default_factory=dict)
-    committees: Dict[str, SQLModel] = field(default_factory=dict)
+    bills: Dict[str, TXLegeBill] = field(default_factory=dict)
+    committees: Dict[str, CommitteeDetails] = field(default_factory=dict)
     members: Dict[str, Dict[str, str]] = field(default_factory=dict)
+    versions: List[Any] = field(default_factory=list)
+
     lege_session_id: str = field(default_factory=str)
     _base_url: ClassVar[str] = TLO_URLS.BASE
     _tlo_session_dropdown_value: Optional[str] = None
@@ -80,7 +85,7 @@ class LegislativeSessionLinkBuilder(abc.ABC):
         return BuildWebDriver.driver_and_wait(_driver, _wait)
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("InterfaceBase._select_legislative_session")
+    @logfire.instrument("InterfaceBase.select_legislative_session")
     def select_legislative_session(cls, identifier: Optional[str] = None) -> str:
         identifier = "cboLegSess" if not identifier else identifier
         return cls._legistative_session_selector(_field_id=identifier)
@@ -156,16 +161,19 @@ class LegislativeSessionLinkBuilder(abc.ABC):
             pass
 
     @classmethod
+    @logfire.instrument("InterfaceBase.fetch")
     def fetch(cls, *args, **kwargs) -> List[Tuple[str, str]] | Dict[str, Dict[str, str]]:
         cls.navigate_to_page(*args, **kwargs)
         return cls.get_links(*args, **kwargs)
 
     @classmethod
     @abc.abstractmethod
+    @logfire.instrument("InterfaceBase.navigate_to_page")
     def navigate_to_page(cls, *args, **kwargs) -> None:
         ...
 
     @classmethod
     @abc.abstractmethod
+    @logfire.instrument("InterfaceBase.get_links")
     def get_links(cls, *args, **kwargs) -> List[Tuple[str, str]]:
         ...

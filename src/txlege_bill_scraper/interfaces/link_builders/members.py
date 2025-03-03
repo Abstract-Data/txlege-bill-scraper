@@ -11,9 +11,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from txlege_bill_scraper.build_logger import LogFireLogger
-from txlege_bill_scraper.protocols import TYPE_PREFIXES
+from build_logger import LogFireLogger
+from protocols import TYPE_PREFIXES, HttpsValidatedURL
 from .bases import LegislativeSessionLinkBuilder
+from models.members import MemberDetails
 
 
 
@@ -136,8 +137,8 @@ class MemberListInterface(LegislativeSessionLinkBuilder):
             )
 
     @classmethod
-    @LogFireLogger.logfire_method_decorator("MemberListInterface.get_links")
-    def get_links(cls) -> Dict[str, Dict[str, str]]:
+    @logfire.instrument()
+    def get_links(cls) -> Dict[str, MemberDetails]:
         with super().driver_and_wait() as (D_, W_):
             try:
                 W_.until(EC.element_to_be_clickable((By.ID, "content")))
@@ -164,10 +165,12 @@ class MemberListInterface(LegislativeSessionLinkBuilder):
                 _member_url = member.find("a")
                 _member_name = _member_url.text.strip()
                 _member_id = parse_qs(urlparse(_member_url.get('href')).query)["Code"][0]
-                member_list[_member_id] = {
-                    "id": _member_id,
-                    "name": _member_name,
-                    "member_url": urljoin(_member_url_pfx, _member_url.get("href")),
-                    "member_session_id": cls.lege_session_id
-                }
+                member_list[_member_id] = MemberDetails(
+                        **{
+                        "id": _member_id,
+                        "name": _member_name,
+                        "member_url": urljoin(_member_url_pfx, _member_url.get("href")),
+                        "member_session_id": cls.lege_session_id
+                    }
+                )
             return member_list
