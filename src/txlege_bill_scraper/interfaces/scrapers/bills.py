@@ -25,6 +25,7 @@ from models.bills import (
     CommitteeVote,
     CommitteeBill
 )
+from models.members import MemberBillInvolvement
 from pydantic import ValidationError
 
 @dataclass
@@ -38,6 +39,7 @@ class BillDetailComponents:
     committee_bills: ClassVar[List[CommitteeBill]] = []
     committee_votes: ClassVar[List[CommitteeVote]] = []
     documents: ClassVar[List[BillDoc]] = []
+    bill_involvement: ClassVar[MemberBillInvolvement] = []
 
 
 class BillDetailScraper(DetailScrapingInterface):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 from asyncio import Future
 from typing import Self, Dict, Any, List
 import httpx
@@ -9,7 +10,13 @@ from bs4 import BeautifulSoup
 
 from protocols import HttpsValidatedURL
 from .bases import DetailScrapingInterface
-from models.members import MemberDetails, MemberAddress, MemberBillTypeURLs
+from models.members import (
+    MemberDetails,
+    MemberAddress,
+    MemberBillTypeURLs,
+    MemberBillInvolvement,
+    MemberInvolvementType
+)
 
 
 #TODO: Create way to assign member ID to type of bill condition they're involved with.
@@ -67,36 +74,70 @@ class MemberDetailScraper(DetailScrapingInterface):
                     cls.links._base_url + x['href'].replace('..', '')
                     for x in _legislative_links if txt in x.text
                 ), None)
-            member.bill_urls = MemberBillTypeURLs(
-                authored_url=get_url_("Bills Authored"),
-                sponsored_url=get_url_("Bills Sponsored"),
-                coauthored_url=get_url_("Bills Coauthored"),
-                cosponsored_url=get_url_("Bills Cosponsored"),
-                amendments_authored_url=get_url_("Amendments Authored")
-            )
+            get_bill_involvement = functools.partial(cls.get_member_bill_urls, client=client, _member=member)
+            await get_bill_involvement(_url=get_url_("Bills Authored"), _type=MemberInvolvementType.AUTHOR)
+            await get_bill_involvement(_url=get_url_("Bills Sponsored"), _type=MemberInvolvementType.SPONSOR)
+            await get_bill_involvement(_url=get_url_("Bills Coauthored"), _type=MemberInvolvementType.COAUTHOR)
+            await get_bill_involvement(_url=get_url_("Bills Cosponsored"), _type=MemberInvolvementType.COSPONSOR)
+            await get_bill_involvement(_url=get_url_("Amendments Authored"), _type=MemberInvolvementType.AMENDMENT_AUTHOR)
+
+            # member.bill_urls = MemberBillTypeURLs(
+            #     authored_url=get_url_("Bills Authored"),
+            #     sponsored_url=get_url_("Bills Sponsored"),
+            #     coauthored_url=get_url_("Bills Coauthored"),
+            #     cosponsored_url=get_url_("Bills Cosponsored"),
+            #     amendments_authored_url=get_url_("Amendments Authored")
+            # )
         return member
 
     @classmethod
-    async def get_member_bill_urls(cls, client: httpx.AsyncClient, member: MemberDetails) -> MemberDetails | None:
-        bill_type_list = {}
-        for _type, url in member.bill_urls.model_dump().items():
-            response = await client.get(url)
-            soup = BeautifulSoup(response.content, 'html.parser')
-            _bill_table = soup.find_all('table')
-            _type_dict = bill_type_list.setdefault(_type.replace('_url', ""), {})
-            for _bill in _bill_table:
-                _bill_url = _bill.find('a')
-                if not _bill_url:
-                    continue
-                _bill_url = _bill_url['href']
-                try:
-                    _session = parse_qs(urlparse(_bill_url).query)["LegSess"][0]
-                    _bill_num = parse_qs(urlparse(_bill_url).query)["Bill"][0]
-                except KeyError:
-                    continue
-                _type_dict[_bill_num] = _bill_url
-        member.bills = bill_type_list
-        return member
+    async def get_member_bill_urls(cls, client: httpx.AsyncClient, _member: MemberDetails, _url: str, _type: MemberInvolvementType) -> None:
+        # bill_type_list = []
+        response = await client.get(_url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        _bill_table = soup.find_all('table')
+        # _type_dict = bill_type_list.setdefault(_type.replace('_url', ""), {})
+        for _bill in _bill_table:
+            _bill_url = _bill.find('a')
+            if not _bill_url:
+                continue
+            _bill_url = _bill_url['href']
+            try:
+                _session = parse_qs(urlparse(_bill_url).query)["LegSess"][0]
+                _bill_num = parse_qs(urlparse(_bill_url).query)["Bill"][0]
+            except KeyError:
+                continue
+            _bill_details = next((x for x in cls.links.bills.values() if x.bill_number == _bill_num), None)
+            if not _bill_details:
+                continue
+            _member_invovlement = MemberBillInvolvement(
+                member_id=_member.id,
+                bill_id=_bill_details.id,
+                involvement=_type
+            )
+            cls.bill_components.bill_involvement.append(_member_invovlement)
+        return
+    # @classmethod
+    # async def get_member_bill_urls(cls, client: httpx.AsyncClient, member: MemberDetails) -> MemberDetails | None:
+    #     bill_type_list = {}
+    #     for _type, url in member.bill_urls.model_dump().items():
+    #         response = await client.get(url)
+    #         soup = BeautifulSoup(response.content, 'html.parser')
+    #         _bill_table = soup.find_all('table')
+    #         _type_dict = bill_type_list.setdefault(_type.replace('_url', ""), {})
+    #         for _bill in _bill_table:
+    #             _bill_url = _bill.find('a')
+    #             if not _bill_url:
+    #                 continue
+    #             _bill_url = _bill_url['href']
+    #             try:
+    #                 _session = parse_qs(urlparse(_bill_url).query)["LegSess"][0]
+    #                 _bill_num = parse_qs(urlparse(_bill_url).query)["Bill"][0]
+    #             except KeyError:
+    #                 continue
+    #             _type_dict[_bill_num] = _bill_url
+    #     member.bills = bill_type_list
+    #     return member
 
     @classmethod
     async def fetch(
@@ -108,7 +149,7 @@ class MemberDetailScraper(DetailScrapingInterface):
         async def get_individual_member(_m: MemberDetails):
             async with _sem:
                 _m = await cls.get_member_info(_client, _m)
-                _m = await cls.get_member_bill_urls(_client, _m)
+                # _m = await cls.get_member_bill_urls(_client, _m)
                 nonlocal counter
                 counter += 1
                 if counter % 10 == 0:

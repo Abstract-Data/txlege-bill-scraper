@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 import abc
-from typing import Self, ClassVar, List
+from typing import Self, ClassVar, List, ForwardRef
 import httpx
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup, ResultSet as BeautifulSoupResultSet
@@ -16,6 +16,7 @@ from interfaces.link_builders import LegislativeSessionLinkBuilder
 @dataclass
 class DetailScrapingInterface(abc.ABC):
     links: LegislativeSessionLinkBuilder
+    bill_components: ForwardRef('BillDetailScraper.components')
     timeout: ClassVar[httpx.Timeout] = httpx.Timeout(20.0, connect=20.0)  # Set timeouts for connect and read operations
     limits: ClassVar[httpx.Limits] = httpx.Limits(max_connections=20, max_keepalive_connections=10)
     semaphore: asyncio.Semaphore = asyncio.Semaphore(10)

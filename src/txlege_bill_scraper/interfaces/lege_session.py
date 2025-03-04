@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import ClassVar, Dict, Any, Optional, Generator, Union, Self
+from typing import ClassVar, Dict, Any, Optional, Generator, Union, Self, List
 import asyncio
 
 import logfire
@@ -22,6 +22,7 @@ from interfaces.scrapers import (
     BillDetailScraper,
 )
 from models.bills import TXLegeBill, CommitteeDetails
+from models.members import MemberDetails
 
 
 OutputGenerator = Union[
@@ -96,12 +97,13 @@ class SessionInterfaceBase(LegislativeSessionLinkBuilder):
 
 class SessionDetailInterface(DetailScrapingInterface):
     links: Optional[SessionInterfaceBase] = None
-    bills: BillDetailScraper.components = BillDetailScraper.components
+    members: List[MemberDetails] = field(default_factory=list)
+    # bills: BillDetailScraper.components = BillDetailScraper.components
 
     def __init__(self, chamber: ChamberTuple, legislative_session: str | int):
         self.links = SessionInterfaceBase(chamber, legislative_session)
         DetailScrapingInterface.links = self.links
-        BillDetailScraper.links = self.links
+        DetailScrapingInterface.bill_components = BillDetailScraper.components
 
     async def build_detail(self):
         async with httpx.AsyncClient(
@@ -118,8 +120,16 @@ class SessionDetailInterface(DetailScrapingInterface):
                 )
             )
 
-            self.links.members = await member_task
-            self.links.bills = await bill_task
+            self.members = await member_task
+            self.links.members = {
+                k: v for k, v in self.links.members.items() if k not in self.members
+            }
+            # self.links.bills = await bill_task
+            await bill_task
+            # Remove bills list from links.bills that were processed
+            self.links.bills = {
+                k: v for k, v in self.links.bills.items() if k not in self.bill_components.bills
+            }
         return self
 
     @logfire.instrument()

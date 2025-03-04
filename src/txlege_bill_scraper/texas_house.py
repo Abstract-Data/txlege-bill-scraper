@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 from protocols import HOUSE
 
 LEGISLATIVE_SESSION: SessionDetails = SessionDetails(
-    lege_session="89", lege_session_desc="R"
+    lege_session="87", lege_session_desc="R"
 )
 
 

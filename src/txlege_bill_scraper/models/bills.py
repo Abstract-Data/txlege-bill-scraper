@@ -1,57 +1,18 @@
 from __future__ import annotations
 
-from typing import Optional, Annotated, Dict, Any, List, Union
-from enum import Enum
+from typing import Optional, Union
 from sqlmodel import Field as SQLModelField, Relationship, JSON, SQLModel, Date, Time, ARRAY
 from .bases import TexasLegislatureModelBase
 from sqlmodel import Field as SQLModelField, String as SQLModelString, Date as SQLModelDate
-from pydantic import HttpUrl, AfterValidator, BeforeValidator, PastDate, model_validator
-from bs4 import Tag
-import re
+from pydantic import  model_validator
 from datetime import datetime, date
 
 from protocols import BillDocFileType, BillDocDescription, WebElementDate, HttpsValidatedURL, WebElementText
 from .committees import CommitteeDetails, CommitteeVote, CommitteeBill
 
 
-# def get_element_text(element: Any) -> str | list | None:
-#     if element:
-#         if isinstance(element, Tag):
-#             result = element.text.strip()
-#             result_list = result.split("|")
-#             if len(result_list) > 1:
-#                 return [x.strip() for x in result_list]
-#             return result
-#         return element.strip()
-#     return None
-#
-#
-# def format_datetime(element: Any) -> date | None:
-#     if not element:
-#         return None
-#     field_text = get_element_text(element)
-#     date_match = re.compile(r"\d{2}/\d{2}/\d{4}").search(field_text)
-#     return (
-#         datetime.strptime(date_match.group(), "%m/%d/%Y").date() if date_match else None
-#     )
-#
-#
-# def check_url(value: HttpUrl) -> HttpUrl:
-#     if not value or value.scheme == "https":
-#         pass
-#     else:
-#         value = HttpUrl(value.__str__().replace("http://", "https://"))
-#     return value
-#
-#
-# HttpsValidatedURL = Annotated[Optional[HttpUrl], AfterValidator(check_url)]
-# WebElementText = Annotated[
-#     Optional[Union[Tag, str, list]], BeforeValidator(get_element_text)
-# ]
-# WebElementDate = Annotated[Optional[PastDate], BeforeValidator(format_datetime)]
 
-
-class BillDoc(TexasLegislatureModelBase):
+class BillDocBase(TexasLegislatureModelBase):
     id: Optional[str] = SQLModelField(default=None, primary_key=True)
     bill_id: Optional[str] = SQLModelField(foreign_key="txlegebill.id")
     version_id: Optional[str] = SQLModelField(default=None, foreign_key="billversion.id")
@@ -65,6 +26,10 @@ class BillDoc(TexasLegislatureModelBase):
     def create_id(self):
         self.id = f"{self.version_id}-{self.doc_description}-{self.doc_type}"
         return self
+
+class BillDoc(BillDocBase):
+    pass
+
 
 
 class BillCompanion(TexasLegislatureModelBase):
