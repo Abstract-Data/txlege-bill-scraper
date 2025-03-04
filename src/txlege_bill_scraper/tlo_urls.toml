@@ -1,6 +1,12 @@
-MAIN-TLO-URL = "https://capitol.texas.gov/"
+TLO-BASE-URL = "https://capitol.texas.gov/"
 BILL-TEXT-BASE = "tlodocs/{lege_session}/billtext/html/{chamber}{bill_num}"
 FISCAL-NOTE-BASE = "tlodocs/{lege_session}/fiscalnotes/html/{chamber}{bill_num}"
+FILED-BILLS-LIST = "Reports/Report.aspx?LegSess={session}&ID={chamber_fullname}filed"
+
+[PREFIXES]
+    MEMBERS = "Members/"
+    BILLS = "Reports/"
+    COMMITTEES = "Committees/"
 
 [CHAMBER-URLS]
 MEMBER-LIST = "Members/Members.aspx?Chamber={}"
